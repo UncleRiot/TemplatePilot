@@ -1,0 +1,16 @@
+<Application x:Class="TemplatePilot.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:TemplatePilot.Helpers">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Colors.xaml" />
+        <ResourceDictionary Source="Dimensions.xaml" />
+        <ResourceDictionary Source="Styles.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+      <helpers:ImageBytesToBitmapSourceConverter x:Key="ImageBytesToBitmapSourceConverter" />
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>
