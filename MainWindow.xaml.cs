@@ -31,6 +31,7 @@ public partial class MainWindow : FluentWindow
         _windowPlacement = windowPlacement;
         _windowPlacement.Attach(this, "MainWindow");
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        viewModel.UpdateDialogRequested += OnUpdateDialogRequested;
         UpdateTemplatesGridHeaders();
     }
 
@@ -90,6 +91,7 @@ public partial class MainWindow : FluentWindow
         if (DataContext is MainWindowViewModel viewModel)
         {
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            viewModel.UpdateDialogRequested -= OnUpdateDialogRequested;
             viewModel.Dispose();
         }
 
@@ -119,9 +121,31 @@ public partial class MainWindow : FluentWindow
         }
     }
 
-    private void OpenTemplates_Click(object sender, RoutedEventArgs e)
+    private async void OnUpdateDialogRequested(
+        string message,
+        bool showOpenReleaseButton)
     {
-        ViewModel.SelectedNavigationIndex = 1;
+        var dialog = new ContentDialog(RootContentDialogHost)
+        {
+            Title = ViewModel.AppTitle,
+            Content = message,
+            CloseButtonText = showOpenReleaseButton
+                ? ViewModel.CancelText
+                : ViewModel.OkText
+        };
+
+        if (showOpenReleaseButton)
+        {
+            dialog.PrimaryButtonText = ViewModel.OpenReleaseText;
+        }
+
+        ContentDialogResult result =
+            await dialog.ShowAsync(CancellationToken.None).ConfigureAwait(true);
+
+        if (result == ContentDialogResult.Primary)
+        {
+            ViewModel.OpenReleasesCommand.Execute(null);
+        }
     }
 
     private void TemplatesGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)

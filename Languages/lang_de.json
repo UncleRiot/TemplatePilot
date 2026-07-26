@@ -1,4 +1,4 @@
-{
+﻿{
   "AppTitle": "Template Pilot",
   "Templates": "Textbausteine",
   "Search": "Suchen",
@@ -52,21 +52,12 @@
   "CategoryFilter": "Kategorie-Filter",
   "AllCategories": "Alle Kategorien",
   "SelectedCategories": "{0} Kategorien",
-  "Home": "Start",
   "Editor": "Editor",
   "About": "Info",
   "Theme": "Design",
   "ThemeSystem": "System",
   "ThemeLight": "Hell",
   "ThemeDark": "Dunkel",
-  "WelcomeTitle": "Willkommen bei Template Pilot",
-  "WelcomeText": "Erstellen, organisieren und verwenden Sie wiederverwendbare Vorlagen an einem Ort.",
-  "QuickActions": "Schnellaktionen",
-  "CreateTemplate": "Vorlage erstellen",
-  "EditSelectedTemplate": "Ausgewählte Vorlage bearbeiten",
-  "TemplateLibrary": "Vorlagenbibliothek",
-  "TemplateLibraryDescription": "Vorlagen suchen, filtern und verwalten.",
-  "EditorDescription": "Erstellen Sie eine neue Vorlage oder bearbeiten Sie die ausgewählte Vorlage.",
   "SettingsDescription": "Sprache, Design, Tastenkürzel und Startverhalten konfigurieren.",
   "TemplatesFolder": "Vorlagenordner",
   "ChooseFolder": "Ordner auswählen",
@@ -81,9 +72,6 @@
   "Navigation": "Navigation",
   "Appearance": "Darstellung",
   "General": "Allgemein",
-  "SelectedTemplate": "Ausgewählte Vorlage",
-  "NoSelection": "Keine Auswahl",
-  "OpenTemplates": "Vorlagen öffnen",
   "RestoreRecovery": "Nicht gespeicherte Editor-Wiederherstellung laden?",
   "OpenTemplateFilter": "Vorlagenpakete (*.tplpack;*.zip)|*.tplpack;*.zip|Alle Dateien (*.*)|*.*",
   "ExportZipFilter": "ZIP-Export (*.zip)|*.zip",
@@ -98,5 +86,7 @@
   "UpdateAvailable": "Version {0} ist verfügbar.",
   "UpdateAvailableMessage": "Version {0} ist verfügbar. Öffnen Sie Info, um das Release aufzurufen.",
   "UpdateCheckFailed": "Updateinformationen sind derzeit nicht verfügbar.",
-  "OpenLinkFailed": "Der Link konnte nicht geöffnet werden."
+  "OpenLinkFailed": "Der Link konnte nicht geöffnet werden.",
+  "OpenRelease": "Release öffnen",
+  "OK": "OK"
 }

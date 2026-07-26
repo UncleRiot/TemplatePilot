@@ -56,12 +56,6 @@
                    PreviewMouseLeftButtonUp="NavigationList_PreviewMouseLeftButtonUp">
             <ListBoxItem>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Home24" Margin="0,0,10,0" />
-                <TextBlock Text="{Binding HomeText}" VerticalAlignment="Center" />
-              </StackPanel>
-            </ListBoxItem>
-            <ListBoxItem>
-              <StackPanel Orientation="Horizontal">
                 <ui:SymbolIcon Symbol="DocumentBulletList24" Margin="0,0,10,0" />
                 <TextBlock Text="{Binding TemplatesText}" VerticalAlignment="Center" />
               </StackPanel>
@@ -86,75 +80,6 @@
                   Margin="6,8,12,12"
                   SelectedIndex="{Binding SelectedNavigationIndex, Mode=TwoWay}"
                   Style="{StaticResource PageHostTabControlStyle}">
-
-        <TabItem>
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="8">
-              <TextBlock Text="{Binding WelcomeTitleText}"
-                         Style="{StaticResource HeaderTextStyle}"
-                         FontSize="28" />
-              <TextBlock Text="{Binding WelcomeText}"
-                         Opacity="0.72"
-                         Margin="0,6,0,20"
-                         TextWrapping="Wrap" />
-
-              <TextBlock Text="{Binding QuickActionsText}"
-                         FontWeight="SemiBold"
-                         FontSize="16"
-                         Margin="0,0,0,10" />
-
-              <UniformGrid Columns="2" Margin="0,0,0,18">
-                <Border Style="{StaticResource CardStyle}" Margin="0,0,6,0">
-                  <StackPanel>
-                    <ui:SymbolIcon Symbol="AddSquare24" FontSize="28" HorizontalAlignment="Left" />
-                    <TextBlock Text="{Binding CreateTemplateText}"
-                               FontWeight="SemiBold"
-                               FontSize="16"
-                               Margin="0,10,0,4" />
-                    <TextBlock Text="{Binding EditorDescriptionText}"
-                               Opacity="0.72"
-                               TextWrapping="Wrap"
-                               Margin="0,0,0,12" />
-                    <ui:Button Content="{Binding NewText}"
-                            Command="{Binding NewTemplateCommand}"
-                            Appearance="Primary"
-                            HorizontalAlignment="Left" />
-                  </StackPanel>
-                </Border>
-
-                <Border Style="{StaticResource CardStyle}" Margin="6,0,0,0">
-                  <StackPanel>
-                    <ui:SymbolIcon Symbol="DocumentBulletList24" FontSize="28" HorizontalAlignment="Left" />
-                    <TextBlock Text="{Binding TemplateLibraryText}"
-                               FontWeight="SemiBold"
-                               FontSize="16"
-                               Margin="0,10,0,4" />
-                    <TextBlock Text="{Binding TemplateLibraryDescriptionText}"
-                               Opacity="0.72"
-                               TextWrapping="Wrap"
-                               Margin="0,0,0,12" />
-                    <ui:Button Content="{Binding OpenTemplatesText}"
-                            Click="OpenTemplates_Click"
-                            HorizontalAlignment="Left" />
-                  </StackPanel>
-                </Border>
-              </UniformGrid>
-
-              <Border Style="{StaticResource CardStyle}">
-                <StackPanel>
-                  <TextBlock Text="{Binding SelectedTemplateText}"
-                             FontWeight="SemiBold" />
-                  <TextBlock Text="{Binding SelectedTemplateDisplayName}"
-                             FontSize="20"
-                             Margin="0,6,0,12" />
-                  <ui:Button Content="{Binding EditSelectedTemplateText}"
-                          Command="{Binding EditTemplateCommand}"
-                          HorizontalAlignment="Left" />
-                </StackPanel>
-              </Border>
-            </StackPanel>
-          </ScrollViewer>
-        </TabItem>
 
         <TabItem>
           <Grid>
@@ -535,5 +460,9 @@
         </TabItem>
       </TabControl>
     </Grid>
+
+    <ui:ContentDialogHost x:Name="RootContentDialogHost"
+                          Grid.RowSpan="2"
+                          Panel.ZIndex="1000" />
   </Grid>
 </ui:FluentWindow>

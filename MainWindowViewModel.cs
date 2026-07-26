@@ -10,6 +10,8 @@ namespace TemplatePilot.ViewModels;
 
 public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 {
+    public event Action<string, bool>? UpdateDialogRequested;
+
     private readonly TemplateCacheService _cache;
     private readonly TemplateEditorService _editorService;
     private readonly TemplateEditorDialogService _editorDialog;
@@ -178,36 +180,22 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public bool IsEditorOpen => ActiveEditor is not null;
 
     public string AppTitle => _localization["AppTitle"];
-    public string HomeText => _localization["Home"];
     public string EditorText => _localization["Editor"];
     public string AboutText => _localization["About"];
     public string ThemeText => _localization["Theme"];
     public string ThemeSystemText => _localization["ThemeSystem"];
     public string ThemeLightText => _localization["ThemeLight"];
     public string ThemeDarkText => _localization["ThemeDark"];
-    public string WelcomeTitleText => _localization["WelcomeTitle"];
-    public string WelcomeText => _localization["WelcomeText"];
-    public string QuickActionsText => _localization["QuickActions"];
-    public string CreateTemplateText => _localization["CreateTemplate"];
-    public string EditSelectedTemplateText => _localization["EditSelectedTemplate"];
-    public string TemplateLibraryText => _localization["TemplateLibrary"];
-    public string OpenTemplatesText => _localization["OpenTemplates"];
-    public string TemplateLibraryDescriptionText => _localization["TemplateLibraryDescription"];
-    public string EditorDescriptionText => _localization["EditorDescription"];
     public string SettingsDescriptionText => _localization["SettingsDescription"];
     public string AboutDescriptionText => _localization["AboutDescription"];
     public string VersionText => _localization["Version"];
     public string AppearanceText => _localization["Appearance"];
     public string GeneralText => _localization["General"];
-    public string SelectedTemplateText => _localization["SelectedTemplate"];
-    public string NoSelectionText => _localization["NoSelection"];
     public string CtrlText => _localization["Ctrl"];
     public string ShiftText => _localization["Shift"];
     public string AltText => _localization["Alt"];
     public string WinText => _localization["Win"];
     public string ApplicationVersion => TemplatePilot.Infrastructure.AppConstants.AppVersion;
-    public string SelectedTemplateDisplayName =>
-        SelectedTemplate?.DisplayName ?? NoSelectionText;
     public IReadOnlyList<string> AvailableThemes =>
         new[] { ThemeSystemText, ThemeLightText, ThemeDarkText };
     public string TemplatesText => _localization["Templates"];
@@ -246,6 +234,9 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string RepositoryText => _localization["Repository"];
     public string ReleasesText => _localization["Releases"];
     public string CheckForUpdatesText => _localization["CheckForUpdates"];
+    public string OpenReleaseText => _localization["OpenRelease"];
+    public string OkText => _localization["OK"];
+    public string CancelText => _localization["Cancel"];
     public string UpdateStatus
     {
         get => _updateStatus;
@@ -331,7 +322,6 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
                 DeleteTemplateCommand.RaiseCanExecuteChanged();
                 DuplicateTemplateCommand.RaiseCanExecuteChanged();
                 RaiseActiveCommandStates();
-                OnPropertyChanged(nameof(SelectedTemplateDisplayName));
             }
         }
     }
@@ -429,6 +419,9 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         {
             _updateState = UpdateState.Failed;
             RefreshUpdateStatus();
+            UpdateDialogRequested?.Invoke(
+                UpdateStatus,
+                false);
             return;
         }
 
@@ -438,10 +431,9 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
             _updateState = UpdateState.Available;
             RefreshUpdateStatus();
 
-            _messages.Info(string.Format(
-                CultureInfo.CurrentCulture,
-                _localization["UpdateAvailableMessage"],
-                result.LatestVersion));
+            UpdateDialogRequested?.Invoke(
+                UpdateStatus,
+                true);
             return;
         }
 
@@ -451,7 +443,9 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (showUpToDateMessage)
         {
-            _messages.Info(UpdateStatus);
+            UpdateDialogRequested?.Invoke(
+                UpdateStatus,
+                false);
         }
     }
 
