@@ -1,0 +1,105 @@
+﻿<Window x:Class="TemplatePilot.Views.SearchPopupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="540"
+        Height="360"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Loaded="Window_Loaded"
+        KeyDown="Window_KeyDown">
+  <Border Background="{StaticResource BrushSurface}"
+          BorderBrush="{StaticResource BrushBorder}"
+          BorderThickness="1"
+          CornerRadius="{StaticResource CornerNormal}"
+          Padding="12"
+          MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <DockPanel Grid.Row="0" Margin="0,0,0,10">
+        <Image Source="/Ressources/prg.png" Width="28" Height="28" Margin="0,0,8,0" DockPanel.Dock="Left" />
+
+        <Grid DockPanel.Dock="Right" Width="170" Margin="8,0,0,0">
+          <ToggleButton x:Name="CategoryFilterButton"
+                        Content="{Binding CategoryFilterSummary}"
+                        ToolTip="{Binding CategoryFilterLabel}" />
+          <Popup IsOpen="{Binding IsChecked, ElementName=CategoryFilterButton}"
+                 PlacementTarget="{Binding ElementName=CategoryFilterButton}"
+                 Placement="Bottom"
+                 StaysOpen="False"
+                 AllowsTransparency="True">
+            <Border Background="{StaticResource BrushSurface}"
+                    BorderBrush="{StaticResource BrushBorder}"
+                    BorderThickness="1"
+                    Padding="8"
+                    Width="240">
+              <StackPanel>
+                <TextBlock Text="{Binding CategoryFilterLabel}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <Button Content="{Binding AllCategoriesText}"
+                        Command="{Binding ClearCategoryFilterCommand}"
+                        HorizontalAlignment="Stretch"
+                        Margin="0,0,0,8" />
+                <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                  <ItemsControl ItemsSource="{Binding CategoryFilters}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <CheckBox Content="{Binding Name}"
+                                  IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  Margin="0,2" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </StackPanel>
+            </Border>
+          </Popup>
+        </Grid>
+
+        <TextBox x:Name="FilterTextBox"
+                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="{Binding HintText}" />
+      </DockPanel>
+
+      <ListBox x:Name="TemplateList"
+               Grid.Row="1"
+               ItemsSource="{Binding TemplatesView}"
+               SelectedItem="{Binding SelectedTemplate, Mode=TwoWay}"
+               MouseDoubleClick="TemplateList_MouseDoubleClick">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Grid Margin="0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="90" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="120" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="{Binding Metadata.Key}" FontWeight="SemiBold" />
+              <TextBlock Grid.Column="1" Text="{Binding Metadata.Name}" />
+              <TextBlock Grid.Column="2" Text="{Binding Metadata.Category}" Foreground="{StaticResource BrushMutedText}" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <DockPanel Grid.Row="2" Margin="0,10,0,0">
+        <TextBlock Text="ESC"
+                   Foreground="{StaticResource BrushMutedText}"
+                   VerticalAlignment="Center"
+                   DockPanel.Dock="Left" />
+        <Button Content="{Binding InsertText}"
+                Command="{Binding ConfirmCommand}"
+                HorizontalAlignment="Right"
+                DockPanel.Dock="Right"
+                Style="{StaticResource PrimaryButtonStyle}" />
+      </DockPanel>
+    </Grid>
+  </Border>
+</Window>
