@@ -4,6 +4,7 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:behaviors="clr-namespace:TemplatePilot.Behaviors"
         Title="{Binding WindowTitle}"
+        Icon="/Ressources/templatepilot.ico"
         Width="900"
         Height="620"
         MinWidth="760"

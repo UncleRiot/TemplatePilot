@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Media;
@@ -263,7 +263,7 @@ public static class IconResourceHelper
 {
     public static Icon LoadApplicationIcon()
     {
-        var info = WpfApplication.GetResourceStream(new Uri("pack://application:,,,/Ressources/prg.ico", UriKind.Absolute));
+        var info = WpfApplication.GetResourceStream(new Uri("pack://application:,,,/Ressources/templatepilot.ico", UriKind.Absolute));
         if (info?.Stream is null)
         {
             return SystemIcons.Application;

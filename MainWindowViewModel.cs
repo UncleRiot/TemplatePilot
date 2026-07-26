@@ -124,6 +124,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
             () => OpenUrl(UpdateService.RepositoryUrl));
         OpenReleasesCommand = new RelayCommand(
             () => OpenUrl(_latestReleaseUrl));
+        OpenKoFiCommand = new RelayCommand(
+            () => OpenUrl("https://ko-fi.com/uncleriot"));
 
         _cache.TemplatesChanged += OnTemplatesChanged;
         _categories.CategoriesChanged += OnCategoriesChanged;
@@ -157,6 +159,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public AsyncRelayCommand CheckForUpdatesCommand { get; }
     public RelayCommand OpenRepositoryCommand { get; }
     public RelayCommand OpenReleasesCommand { get; }
+    public RelayCommand OpenKoFiCommand { get; }
 
     public TemplateEditorViewModel? ActiveEditor
     {

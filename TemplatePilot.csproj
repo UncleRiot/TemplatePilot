@@ -10,7 +10,7 @@
 		<RootNamespace>TemplatePilot</RootNamespace>
 		<AssemblyName>TemplatePilot</AssemblyName>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
-		<ApplicationIcon>Ressources\prg.ico</ApplicationIcon>
+		<ApplicationIcon>Ressources\templatepilot.ico</ApplicationIcon>
 		<EnableWindowsTargeting>true</EnableWindowsTargeting>
 		<InvariantGlobalization>false</InvariantGlobalization>
 		<PlatformTarget>AnyCPU</PlatformTarget>
@@ -30,8 +30,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Resource Include="Ressources\prg.png" />
-		<Resource Include="Ressources\prg.ico" />
+		<Resource Include="Ressources\templatepilot.png" />
+		<Resource Include="Ressources\templatepilot.ico" />
+		<Resource Include="Ressources\ko-fi.png" />
+		<Resource Include="Ressources\molotov.jpg" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -4,9 +4,11 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Width="620"
         Height="360"
+        MinWidth="480"
+        MinHeight="260"
         WindowStyle="None"
         ExtendsContentIntoTitleBar="False"
-        ResizeMode="NoResize"
+        ResizeMode="CanResizeWithGrip"
         ShowInTaskbar="False"
         Topmost="True"
         AllowsTransparency="False"
@@ -27,7 +29,7 @@
       </Grid.RowDefinitions>
 
       <DockPanel Grid.Row="0" Margin="0,0,0,8">
-        <Image Source="/Ressources/prg.png" Width="26" Height="26" Margin="0,0,8,0" DockPanel.Dock="Left" />
+        <Image Source="/Ressources/templatepilot.png" Width="26" Height="26" Margin="0,0,8,0" DockPanel.Dock="Left" />
 
         <Grid DockPanel.Dock="Right" Width="32" Margin="8,0,0,0">
           <ToggleButton x:Name="CategoryFilterButton"
@@ -47,18 +49,21 @@
                  PlacementTarget="{Binding ElementName=CategoryFilterButton}"
                  Placement="Bottom"
                  StaysOpen="False"
-                 AllowsTransparency="True">
-            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                 AllowsTransparency="False">
+            <Border Background="{DynamicResource ApplicationBackgroundBrush}"
                     BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    Padding="8"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    Padding="10"
                     Width="220">
               <StackPanel>
                 <TextBlock Text="{Binding CategoryFilterLabel}" FontWeight="SemiBold" Margin="0,0,0,8" />
                 <ui:Button Content="{Binding AllCategoriesText}"
                         Command="{Binding ClearCategoryFilterCommand}"
                         HorizontalAlignment="Stretch"
-                        Height="24"
+                        Height="36"
+                        MinHeight="36"
+                        Padding="10,6"
                         Margin="0,0,0,8" />
                 <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
                   <ItemsControl ItemsSource="{Binding CategoryFilters}">
@@ -92,6 +97,8 @@
                 IsReadOnly="True"
                 AutoGenerateColumns="False"
                 HeadersVisibility="Column"
+                HorizontalContentAlignment="Left"
+                VerticalContentAlignment="Top"
                 MouseDoubleClick="TemplateList_MouseDoubleClick">
         <DataGrid.Columns>
           <DataGridTextColumn Binding="{Binding Metadata.Key}" Width="110">
