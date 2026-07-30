@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -7,6 +7,7 @@ using TemplatePilot.Infrastructure;
 using TemplatePilot.Models;
 using Microsoft.Win32;
 using System.Reflection;
+using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using TemplatePilot.Helpers;
 using TemplatePilot.ViewModels;
@@ -15,6 +16,7 @@ using Forms = System.Windows.Forms;
 
 namespace TemplatePilot.Services;
 
+[SupportedOSPlatform("windows7.0")]
 public sealed class AppThemeService
 {
     private Window? _watchedWindow;
@@ -751,6 +753,7 @@ public sealed class LocalizationService
             ["StartWithWindows"] = "Start with Windows",
             ["MinimizeToTray"] = "Minimize to tray",
             ["CloseToTray"] = "Close to tray",
+            ["SearchPopupVisibleLines"] = "Visible text lines per search result",
             ["UserName"] = "Name",
             ["Company"] = "Company",
             ["NoTemplateSelected"] = "No template selected",
@@ -1273,6 +1276,8 @@ public sealed class SettingsService
 
         settings.Shortcut ??= HotkeySettings.Default();
         settings.PopupCategoryFilter ??= new List<string>();
+        settings.SearchPopupColumns ??= new List<SearchPopupColumnSettings>();
+        settings.SearchPopupVisibleLines = Math.Clamp(settings.SearchPopupVisibleLines, 1, 10);
         settings.PopupCategoryFilter = settings.PopupCategoryFilter
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())

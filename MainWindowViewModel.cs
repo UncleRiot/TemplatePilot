@@ -46,6 +46,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _startWithWindows;
     private bool _minimizeToTray;
     private bool _closeToTray;
+    private int _searchPopupVisibleLines;
     private string _templatesPath;
     private TemplateEditorViewModel? _activeEditor;
     private string _updateStatus = string.Empty;
@@ -99,6 +100,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         _startWithWindows = _settings.Current.StartWithWindows;
         _minimizeToTray = _settings.Current.MinimizeToTray;
         _closeToTray = _settings.Current.CloseToTray;
+        _searchPopupVisibleLines = Math.Clamp(_settings.Current.SearchPopupVisibleLines, 1, 10);
         _templatesPath = _paths.TemplatesPath;
 
         TemplatesView = CollectionViewSource.GetDefaultView(Templates);
@@ -227,6 +229,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string StartWithWindowsLabel => _localization["StartWithWindows"];
     public string MinimizeToTrayLabel => _localization["MinimizeToTray"];
     public string CloseToTrayLabel => _localization["CloseToTray"];
+    public string SearchPopupVisibleLinesLabel => _localization["SearchPopupVisibleLines"];
+    public IReadOnlyList<int> SearchPopupVisibleLineOptions { get; } = Enumerable.Range(1, 10).ToList();
     public string TemplatesFolderLabel => _localization["TemplatesFolder"];
     public string ChooseFolderText => _localization["ChooseFolder"];
     public string CopyrightText => _localization["Copyright"];
@@ -384,6 +388,12 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     {
         get => _closeToTray;
         set => SetProperty(ref _closeToTray, value);
+    }
+
+    public int SearchPopupVisibleLines
+    {
+        get => _searchPopupVisibleLines;
+        set => SetProperty(ref _searchPopupVisibleLines, Math.Clamp(value, 1, 10));
     }
 
     public string TemplatesPath
@@ -893,6 +903,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         next.StartWithWindows = StartWithWindows;
         next.MinimizeToTray = MinimizeToTray;
         next.CloseToTray = CloseToTray;
+        next.SearchPopupVisibleLines = Math.Clamp(SearchPopupVisibleLines, 1, 10);
         next.TemplatesPath = Path.GetFullPath(TemplatesPath.Trim());
 
         var templatesPathChanged = !string.Equals(

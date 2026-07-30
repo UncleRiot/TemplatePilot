@@ -334,6 +334,22 @@
                 </StackPanel>
               </Border>
 
+              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding SearchPopupVisibleLinesLabel}"
+                             VerticalAlignment="Center"
+                             TextWrapping="Wrap" />
+                  <ComboBox Grid.Column="1"
+                            ItemsSource="{Binding SearchPopupVisibleLineOptions}"
+                            SelectedItem="{Binding SearchPopupVisibleLines}"
+                            MinWidth="220" />
+                </Grid>
+              </Border>
+
               <ui:Button Content="{Binding SaveText}"
                       Command="{Binding SaveSettingsCommand}"
                       Appearance="Primary"

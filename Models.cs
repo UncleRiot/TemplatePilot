@@ -13,6 +13,7 @@ public sealed class AppSettings
     public bool StartWithWindows { get; set; }
     public bool MinimizeToTray { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
+    public int SearchPopupVisibleLines { get; set; } = 3;
     public int ClipboardTimeoutMs { get; set; } = 1500;
     public int ClipboardRetryDelayMs { get; set; } = 40;
     public int ClipboardRestoreDelayMs { get; set; } = 250;
@@ -21,6 +22,7 @@ public sealed class AppSettings
     public string CompanyName { get; set; } = string.Empty;
     public bool AutosaveEditor { get; set; } = true;
     public List<string> PopupCategoryFilter { get; set; } = new();
+    public List<SearchPopupColumnSettings> SearchPopupColumns { get; set; } = new();
     public Dictionary<string, WindowPlacementSettings> WindowPlacements { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public AppSettings Clone()
@@ -35,6 +37,7 @@ public sealed class AppSettings
             StartWithWindows = StartWithWindows,
             MinimizeToTray = MinimizeToTray,
             CloseToTray = CloseToTray,
+            SearchPopupVisibleLines = SearchPopupVisibleLines,
             ClipboardTimeoutMs = ClipboardTimeoutMs,
             ClipboardRetryDelayMs = ClipboardRetryDelayMs,
             ClipboardRestoreDelayMs = ClipboardRestoreDelayMs,
@@ -43,6 +46,7 @@ public sealed class AppSettings
             CompanyName = CompanyName,
             AutosaveEditor = AutosaveEditor,
             PopupCategoryFilter = PopupCategoryFilter.ToList(),
+            SearchPopupColumns = SearchPopupColumns.Select(x => x.Clone()).ToList(),
             WindowPlacements = WindowPlacements.ToDictionary(
                 x => x.Key,
                 x => x.Value.Clone(),
@@ -50,6 +54,25 @@ public sealed class AppSettings
         };
     }
 }
+
+
+public sealed class SearchPopupColumnSettings
+{
+    public string Key { get; set; } = string.Empty;
+    public int DisplayIndex { get; set; }
+    public double Width { get; set; }
+
+    public SearchPopupColumnSettings Clone()
+    {
+        return new SearchPopupColumnSettings
+        {
+            Key = Key,
+            DisplayIndex = DisplayIndex,
+            Width = Width
+        };
+    }
+}
+
 
 public sealed class WindowPlacementSettings
 {

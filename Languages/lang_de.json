@@ -1,4 +1,4 @@
-﻿{
+{
   "AppTitle": "Template Pilot",
   "Templates": "Textbausteine",
   "Search": "Suchen",
@@ -88,5 +88,6 @@
   "UpdateCheckFailed": "Updateinformationen sind derzeit nicht verfügbar.",
   "OpenLinkFailed": "Der Link konnte nicht geöffnet werden.",
   "OpenRelease": "Release öffnen",
-  "OK": "OK"
+  "OK": "OK",
+  "SearchPopupVisibleLines": "Sichtbare Textzeilen pro Suchergebnis"
 }

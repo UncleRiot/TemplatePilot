@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
 using TemplatePilot.Models;
@@ -46,6 +46,8 @@ public sealed class SearchPopupViewModel : ViewModelBase
     public string NameLabel => _localization["Name"];
     public string CategoryLabel => _localization["Category"];
     public string PreviewLabel => _localization["Preview"];
+    public int SearchPopupVisibleLines => Math.Clamp(_settings.Current.SearchPopupVisibleLines, 1, 10);
+    public double SearchPopupTextMaxHeight => SearchPopupVisibleLines * 18d;
     public string CategoryFilterLabel => _localization["CategoryFilter"];
     public string AllCategoriesText => _localization["AllCategories"];
     public string CategoryFilterSummary
@@ -198,6 +200,25 @@ public sealed class SearchPopupViewModel : ViewModelBase
         _ = _settings.UpdateAsync(settings =>
         {
             settings.PopupCategoryFilter = selectedCategories;
+        }, CancellationToken.None);
+    }
+
+    public IReadOnlyList<SearchPopupColumnSettings> GetSearchPopupColumns()
+    {
+        return _settings.Current.SearchPopupColumns
+            .Select(x => x.Clone())
+            .ToList();
+    }
+
+    public void SaveSearchPopupColumns(IEnumerable<SearchPopupColumnSettings> columns)
+    {
+        var columnSettings = columns
+            .Select(x => x.Clone())
+            .ToList();
+
+        _ = _settings.UpdateAsync(settings =>
+        {
+            settings.SearchPopupColumns = columnSettings;
         }, CancellationToken.None);
     }
 
