@@ -10,6 +10,8 @@ namespace TemplatePilot.Infrastructure;
 public static class AppConstants
 {
     public const string AppName = "TemplatePilot";
+    public const string AuthorName = "Daniel Capilla";
+    public const string Copyright = "Copyright © Daniel Capilla";
 
     public static string AppVersion
     {

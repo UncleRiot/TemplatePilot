@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Data;
@@ -181,7 +181,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     public bool IsEditorOpen => ActiveEditor is not null;
 
-    public string AppTitle => _localization["AppTitle"];
+    public string AppTitle => AppConstants.AppName;
     public string EditorText => _localization["Editor"];
     public string AboutText => _localization["About"];
     public string ThemeText => _localization["Theme"];
@@ -189,7 +189,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string ThemeLightText => _localization["ThemeLight"];
     public string ThemeDarkText => _localization["ThemeDark"];
     public string SettingsDescriptionText => _localization["SettingsDescription"];
-    public string AboutDescriptionText => _localization["AboutDescription"];
+    public string AboutDescriptionText => $"{AppConstants.AppName} {_localization["AboutDescription"]}";
     public string VersionText => _localization["Version"];
     public string AppearanceText => _localization["Appearance"];
     public string GeneralText => _localization["General"];
@@ -233,7 +233,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public IReadOnlyList<int> SearchPopupVisibleLineOptions { get; } = Enumerable.Range(1, 10).ToList();
     public string TemplatesFolderLabel => _localization["TemplatesFolder"];
     public string ChooseFolderText => _localization["ChooseFolder"];
-    public string CopyrightText => _localization["Copyright"];
+    public string CopyrightText => AppConstants.Copyright;
     public string LicenseText => _localization["License"];
     public string RepositoryText => _localization["Repository"];
     public string ReleasesText => _localization["Releases"];
@@ -805,7 +805,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
         editor.RequestClose += OnEditorRequestClose;
         ActiveEditor = editor;
-        SelectedNavigationIndex = 1;
+        SelectedNavigationIndex = 0;
         ActiveTabIndex = 0;
     }
 

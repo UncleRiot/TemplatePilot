@@ -210,13 +210,13 @@ public sealed class SearchPopupViewModel : ViewModelBase
             .ToList();
     }
 
-    public void SaveSearchPopupColumns(IEnumerable<SearchPopupColumnSettings> columns)
+    public async Task SaveSearchPopupColumnsAsync(IEnumerable<SearchPopupColumnSettings> columns)
     {
         var columnSettings = columns
             .Select(x => x.Clone())
             .ToList();
 
-        _ = _settings.UpdateAsync(settings =>
+        await _settings.UpdateAsync(settings =>
         {
             settings.SearchPopupColumns = columnSettings;
         }, CancellationToken.None);

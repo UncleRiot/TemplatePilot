@@ -24,7 +24,10 @@ public partial class SearchPopupWindow : Wpf.Ui.Controls.FluentWindow
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         RestoreTemplateListColumns();
-        TemplateList.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler(TemplateList_ColumnWidthDragCompleted));
+        TemplateList.AddHandler(
+            Thumb.DragCompletedEvent,
+            new DragCompletedEventHandler(TemplateList_ColumnWidthDragCompleted),
+            true);
 
         Dispatcher.BeginInvoke(() =>
         {
@@ -109,57 +112,31 @@ public partial class SearchPopupWindow : Wpf.Ui.Controls.FluentWindow
                 }
             }
 
-            FitTemplateListColumnsToViewport();
         }
         finally
         {
             _restoringTemplateListColumns = false;
         }
-
-        SaveTemplateListColumns();
     }
 
-    private void FitTemplateListColumnsToViewport()
+    private async void TemplateList_ColumnWidthDragCompleted(object sender, DragCompletedEventArgs e)
     {
-        TemplateList.UpdateLayout();
-
-        var columns = GetTemplateListColumns();
-        var availableWidth = TemplateList.ActualWidth - SystemParameters.VerticalScrollBarWidth - 2;
-        var totalWidth = columns.Sum(x => x.Column.ActualWidth);
-
-        if (availableWidth <= 0 || totalWidth <= availableWidth)
-        {
-            return;
-        }
-
-        var scale = availableWidth / totalWidth;
-
-        foreach (var (_, column) in columns)
-        {
-            column.Width = new DataGridLength(column.ActualWidth * scale);
-        }
-
-        TemplateList.UpdateLayout();
+        await SaveTemplateListColumnsAsync();
     }
 
-    private void TemplateList_ColumnWidthDragCompleted(object sender, DragCompletedEventArgs e)
+    private async void TemplateList_ColumnReordered(object sender, DataGridColumnEventArgs e)
     {
-        SaveTemplateListColumns();
+        await SaveTemplateListColumnsAsync();
     }
 
-    private void TemplateList_ColumnReordered(object sender, DataGridColumnEventArgs e)
-    {
-        SaveTemplateListColumns();
-    }
-
-    private void SaveTemplateListColumns()
+    private async Task SaveTemplateListColumnsAsync()
     {
         if (_restoringTemplateListColumns)
         {
             return;
         }
 
-        ViewModel.SaveSearchPopupColumns(GetTemplateListColumns()
+        await ViewModel.SaveSearchPopupColumnsAsync(GetTemplateListColumns()
             .Select(x => new SearchPopupColumnSettings
             {
                 Key = x.Key,

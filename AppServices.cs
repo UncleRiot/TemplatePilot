@@ -727,7 +727,6 @@ public sealed class LocalizationService
     {
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["AppTitle"] = "Template Pilot",
             ["Templates"] = "Templates",
             ["Search"] = "Search",
             ["New"] = "New",
@@ -791,9 +790,8 @@ public sealed class LocalizationService
             ["SettingsDescription"] = "Configure language, theme, shortcuts, and startup behavior.",
             ["TemplatesFolder"] = "Templates folder",
             ["ChooseFolder"] = "Choose folder",
-            ["AboutDescription"] = "Template Pilot helps you manage and insert reusable content efficiently.",
+            ["AboutDescription"] = "helps you manage and insert reusable content efficiently.",
             ["Version"] = "Version",
-            ["Copyright"] = "Copyright © Daniel Capilla",
             ["License"] = "License",
             ["Repository"] = "Open GitHub repository",
             ["Releases"] = "Open releases",
@@ -900,7 +898,7 @@ public sealed class MessageBoxService
 
     public bool Confirm(string message)
     {
-        return MessageBox.Show(message, _localization["AppTitle"], MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+        return MessageBox.Show(message, AppConstants.AppName, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
     }
 
     public void Error(string message)
@@ -910,7 +908,7 @@ public sealed class MessageBoxService
 
     public void Info(string message)
     {
-        MessageBox.Show(message, _localization["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(message, AppConstants.AppName, MessageBoxButton.OK, MessageBoxImage.Information);
     }
 }
 
@@ -1395,7 +1393,7 @@ public sealed class TrayService : IDisposable
         };
 
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add(_localization["AppTitle"], null, (_, _) => ShowMainWindow());
+        menu.Items.Add(AppConstants.AppName, null, (_, _) => ShowMainWindow());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add(_localization["Exit"], null, (_, _) => exitAction());
         _notifyIcon.ContextMenuStrip = menu;
@@ -1426,7 +1424,7 @@ public sealed class TrayService : IDisposable
     {
         if (_notifyIcon?.ContextMenuStrip is { Items.Count: > 0 } menu)
         {
-            menu.Items[0].Text = _localization["AppTitle"];
+            menu.Items[0].Text = AppConstants.AppName;
             if (menu.Items.Count > 2)
             {
                 menu.Items[2].Text = _localization["Exit"];
