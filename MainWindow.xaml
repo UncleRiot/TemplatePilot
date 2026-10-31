@@ -6,6 +6,9 @@
         xmlns:behaviors="clr-namespace:TemplatePilot.Behaviors"
         xmlns:views="clr-namespace:TemplatePilot.Views"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Background="{DynamicResource TemplatePilotWindowSurfaceBrush}"
+        Icon="/Ressources/templatepilot.ico"
+        FontSize="{Binding MainWindowFontSize}"
         Title="{Binding AppTitle}"
         Width="980"
         Height="760"
@@ -18,58 +21,85 @@
         Closed="Window_Closed"
         StateChanged="Window_StateChanged"
         PreviewKeyDown="Window_PreviewKeyDown">
+  <!-- Semantic Anchor: MainWindowTypographyBinding
+       SSOT: AppSettings.MainWindowFontSize via MainWindowViewModel; all main-window textual controls use this live binding, including WPF-UI styled controls. Icon glyphs have independent fixed sizes.
+       Invariants: the slider changes text only, leaves navigation glyph sizes constant, and does not affect popup typography or stored configuration until Save. -->
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
+    <!-- Semantic Anchor: MainTitleBarIcon | WPF-UI TitleBar.Icon expects an IconElement,
+         not a string path; the same embedded application asset supplies the window and title icon. -->
     <ui:TitleBar Grid.Row="0"
-                 Title="{Binding AppTitle}"
-                 Icon="/Ressources/templatepilot.ico" />
+                 FontSize="{Binding MainWindowFontSize}"
+                 Title="{Binding AppTitle}">
+      <ui:TitleBar.Icon>
+        <ui:ImageIcon>
+          <ui:ImageIcon.Source>
+            <BitmapImage UriSource="pack://application:,,,/Ressources/templatepilot.png" />
+          </ui:ImageIcon.Source>
+        </ui:ImageIcon>
+      </ui:TitleBar.Icon>
+    </ui:TitleBar>
 
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="220" />
+        <ColumnDefinition x:Name="NavigationPaneColumn" Width="220" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
-      <Border Grid.Column="0"
+      <Border x:Name="NavigationPaneBorder" Grid.Column="0"
               Margin="12,8,6,12"
               Padding="10"
               Style="{StaticResource CardStyle}">
+        <!-- Semantic Anchor: NavigationPaneLayout | SSOT: NavigationPaneBorder and NavigationItemStyle define the pane geometry. Invariants: expanded geometry remains unchanged; collapsed buttons and symbols fit completely, without changing navigation bindings. -->
+        <!-- Semantic Anchor: FixedNavigationIcons | Invariant: FontSize belongs only to icon glyphs and never follows MainWindowFontSize; icons remain constant across typography changes. -->
         <DockPanel>
-          <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+          <ui:Button x:Name="NavigationPaneToggleButton"
+                     FontSize="14"
+                     DockPanel.Dock="Top"
+                     Content="←"
+                     Width="34"
+                     Height="30"
+                     HorizontalAlignment="Right"
+                     Margin="0,0,0,10"
+                     Click="NavigationPaneToggleButton_Click"
+                     ToolTip="{Binding NavigationText}" />
+          <StackPanel x:Name="NavigationPaneFooter" DockPanel.Dock="Bottom" Margin="0,12,0,0">
             <TextBlock Text="{Binding AppTitle}"
                        FontWeight="SemiBold"
-                       FontSize="13" />
+                       FontSize="{Binding MainWindowFooterFontSize}" />
             <TextBlock Text="{Binding ApplicationVersion, StringFormat=v{0}}"
                        Opacity="0.72"
-                       FontSize="11" />
+                       FontSize="{Binding MainWindowVersionFontSize}" />
           </StackPanel>
 
           <ListBox x:Name="NavigationList"
+                   FontSize="{Binding MainWindowFontSize}"
                    SelectedIndex="{Binding SelectedNavigationIndex, Mode=TwoWay}"
                    ItemContainerStyle="{StaticResource NavigationItemStyle}"
                    BorderThickness="0"
+                   Padding="0"
                    Background="Transparent"
                    PreviewMouseLeftButtonUp="NavigationList_PreviewMouseLeftButtonUp">
-            <ListBoxItem>
+            <ListBoxItem ToolTip="{Binding TemplatesText}">
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="DocumentBulletList24" Margin="0,0,10,0" />
-                <TextBlock Text="{Binding TemplatesText}" VerticalAlignment="Center" />
+                <ui:SymbolIcon x:Name="TemplatesNavigationIcon" Symbol="DocumentBulletList24" FontSize="14" Margin="0,0,10,0" />
+                <TextBlock x:Name="TemplatesNavigationText" FontSize="{Binding MainWindowFontSize}" Text="{Binding TemplatesText}" VerticalAlignment="Center" />
               </StackPanel>
             </ListBoxItem>
-            <ListBoxItem>
+            <ListBoxItem ToolTip="{Binding SettingsText}">
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Settings24" Margin="0,0,10,0" />
-                <TextBlock Text="{Binding SettingsText}" VerticalAlignment="Center" />
+                <ui:SymbolIcon x:Name="SettingsNavigationIcon" Symbol="Settings24" FontSize="14" Margin="0,0,10,0" />
+                <TextBlock x:Name="SettingsNavigationText" FontSize="{Binding MainWindowFontSize}" Text="{Binding SettingsText}" VerticalAlignment="Center" />
               </StackPanel>
             </ListBoxItem>
-            <ListBoxItem>
+            <ListBoxItem ToolTip="{Binding AboutText}">
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Info24" Margin="0,0,10,0" />
-                <TextBlock Text="{Binding AboutText}" VerticalAlignment="Center" />
+                <ui:SymbolIcon x:Name="AboutNavigationIcon" Symbol="Info24" FontSize="14" Margin="0,0,10,0" />
+                <TextBlock x:Name="AboutNavigationText" FontSize="{Binding MainWindowFontSize}" Text="{Binding AboutText}" VerticalAlignment="Center" />
               </StackPanel>
             </ListBoxItem>
           </ListBox>
@@ -97,33 +127,38 @@
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />
               <RowDefinition Height="3*" MinHeight="220" />
-              <RowDefinition Height="8" />
-              <RowDefinition Height="2*" MinHeight="180" />
+              <RowDefinition x:Name="PreviewSplitterRow" Height="8" />
+              <RowDefinition x:Name="PreviewContentRow" Height="2*" MinHeight="180" />
             </Grid.RowDefinitions>
 
             <DockPanel Grid.Row="0" Margin="0,0,0,10">
+              <!-- Semantic Anchor: TemplatesCommandBarSpacing | SSOT: This command bar defines the spacing contract for primary template actions. Invariants: command order stays unchanged; only inter-button spacing may be adjusted for readability. -->
               <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                <ui:Button Content="{Binding NewText}" Command="{Binding NewTemplateCommand}"
-                        Appearance="Primary" />
-                <ui:Button Content="{Binding EditText}" Command="{Binding EditTemplateCommand}" />
-                <ui:Button Content="{Binding DeleteText}" Command="{Binding DeleteTemplateCommand}"
-                        Appearance="Danger" />
-                <ui:Button Content="{Binding DuplicateText}" Command="{Binding DuplicateTemplateCommand}" />
+                <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding NewText}" Command="{Binding NewTemplateCommand}"
+                        Appearance="Primary" Margin="0,0,12,0" />
+                <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding EditText}" Command="{Binding EditTemplateCommand}" Margin="0,0,12,0" />
+                <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding DeleteText}" Command="{Binding DeleteTemplateCommand}"
+                        Appearance="Danger" Margin="0,0,12,0" />
+                <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding DuplicateText}" Command="{Binding DuplicateTemplateCommand}" />
               </StackPanel>
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
-                <ui:Button Content="{Binding ImportText}" Command="{Binding ImportCommand}" />
-                <ui:Button Content="{Binding ExportText}" Command="{Binding ExportCommand}" Margin="8,0,0,0" />
+                <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding ImportText}" Command="{Binding ImportCommand}" Margin="0,0,12,0" />
+                <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding ExportText}" Command="{Binding ExportCommand}" />
               </StackPanel>
             </DockPanel>
 
             <Border Grid.Row="1" Style="{StaticResource CardStyle}">
-              <TabControl SelectedIndex="{Binding ActiveTabIndex}">
-                <TabItem Header="{Binding TemplatesText}">
+              <TabControl FontSize="{Binding MainWindowFontSize}" SelectedIndex="{Binding ActiveTabIndex}">
+                <TabItem Header="{Binding TemplatesText}" FontSize="{Binding MainWindowFontSize}" Style="{StaticResource TemplateCategoryFluentTabStyle}">
                   <Grid Margin="0,8,0,0">
                     <Grid.RowDefinitions>
                       <RowDefinition Height="Auto" />
                       <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
+                    <!-- Semantic Anchor: PrimaryTabContentAlignment
+                         SSOT: The search row uses the standard TextBox content inset for its text alignment.
+                         Invariants: search text starts at the tab-caption alignment without an icon-related offset;
+                         input binding, filter columns, commands, and control heights remain unchanged. -->
                     <Grid Grid.Row="0" Margin="0,0,0,8">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -131,26 +166,52 @@
                         <ColumnDefinition Width="220" />
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
-                      <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                      <!-- Semantic Anchor: TemplateSearchInput
+                           SSOT: SearchText is the only input/filter source; no visual adornment changes its inset.
+                           Invariants: WPF TextBox defaults govern content padding; filtering, focus, and keyboard
+                           behavior remain unchanged. -->
+                      <TextBox FontSize="{Binding MainWindowFontSize}"
+                               Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                ToolTip="{Binding SearchTextLabel}" />
-                      <ComboBox Grid.Column="2"
+                      <!-- Semantic Anchor: CompactCategoryFilterItems
+                           SSOT: The existing Categories collection and SelectedCategoryFilter remain the sources of items and selection.
+                           Invariants: dropdown item height is independent of item count, and font size inherits from the configured main UI setting. -->
+                      <ComboBox Grid.Column="2" FontSize="{Binding MainWindowFontSize}"
                                 ItemsSource="{Binding Categories}"
                                 SelectedItem="{Binding SelectedCategoryFilter, Mode=TwoWay}"
-                                ToolTip="{Binding CategoryFilterText}" />
-                      <ui:Button Grid.Column="3"
+                                ToolTip="{Binding CategoryFilterText}">
+                        <ComboBox.ItemContainerStyle>
+                          <Style TargetType="{x:Type ComboBoxItem}" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                            <Setter Property="MinHeight" Value="0" />
+                            <Setter Property="Height" Value="30" />
+                            <Setter Property="Padding" Value="8,1" />
+                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                          </Style>
+                        </ComboBox.ItemContainerStyle>
+                      </ComboBox>
+                      <ui:Button Grid.Column="3" FontSize="{Binding MainWindowFontSize}"
                               Content="×"
                               Command="{Binding ClearCategoryFilterCommand}"
                               ToolTip="{Binding ClearCategoryFilterText}"
                               Margin="6,0,0,0"
                               MinWidth="34" />
                     </Grid>
+                    <!-- Semantic Anchor: MainWindowTypographyRowSizing
+                         SSOT: MainWindowViewModel.MainWindowTemplateRowHeight derives the template row height from MainWindowFontSize.
+                         Invariants: text fits at every allowed font size; selected and unselected rows share identical geometry;
+                         no WPF-UI default minimum overrides the compact row density; selection and commands remain unchanged. -->
                     <ui:DataGrid Grid.Row="1"
                                  x:Name="TemplatesGrid"
+                                 FontSize="{Binding MainWindowFontSize}"
+                                 SelectionMode="Single"
+                                 SelectionUnit="FullRow"
+                                 IsReadOnly="True"
+                                 PreviewMouseRightButtonDown="TemplatesGrid_PreviewMouseRightButtonDown"
                                  HorizontalAlignment="Stretch"
                                  AutoGenerateColumns="False"
                                  CanUserSortColumns="True"
-                                 RowHeight="24"
-                                 MinRowHeight="24"
+                                 RowHeight="{Binding MainWindowTemplateRowHeight}"
+                                 MinRowHeight="0"
                                  ColumnHeaderHeight="32"
                                  HeadersVisibility="Column"
                                  GridLinesVisibility="None"
@@ -158,6 +219,23 @@
                                  ItemsSource="{Binding TemplatesView}"
                                  SelectedItem="{Binding SelectedTemplate, Mode=TwoWay}"
                                  MouseDoubleClick="TemplatesGrid_MouseDoubleClick">
+                      <!-- Semantic Anchor: SingleTemplateSelection | SSOT: SelectedTemplate is the sole active template.
+                         Invariants: only full-row single selection; no inline editing of shortcuts or categories;
+                         right-click selects the target row before existing context commands execute;
+                         Edit opens the existing editor; Delete invokes the existing confirmation. -->
+                      <!-- Semantic Anchor: TemplateGridContextActions | SSOT: Context actions invoke the same ViewModel commands as toolbar buttons; no alternate handlers. -->
+                      <ui:DataGrid.ContextMenu>
+                        <ContextMenu FontSize="{Binding MainWindowFontSize}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                          <MenuItem Header="{Binding NewText}" Command="{Binding NewTemplateCommand}" />
+                          <MenuItem Header="{Binding EditText}" Command="{Binding EditTemplateCommand}" />
+                          <MenuItem Header="{Binding DeleteText}" Command="{Binding DeleteTemplateCommand}" />
+                          <MenuItem Header="{Binding DuplicateText}" Command="{Binding DuplicateTemplateCommand}" />
+                          <Separator />
+                          <MenuItem Header="{Binding ImportText}" Command="{Binding ImportCommand}" />
+                          <MenuItem Header="{Binding ExportText}" Command="{Binding ExportCommand}" />
+                          <MenuItem Header="{Binding ClearCategoryFilterText}" Command="{Binding ClearCategoryFilterCommand}" />
+                        </ContextMenu>
+                      </ui:DataGrid.ContextMenu>
                       <ui:DataGrid.Columns>
                         <DataGridTextColumn x:Name="TemplateKeyColumn"
                                             Binding="{Binding Metadata.Key}"
@@ -177,55 +255,138 @@
                   </Grid>
                 </TabItem>
 
-                <TabItem Header="{Binding CategoriesText}">
+                <TabItem Header="{Binding CategoriesText}" FontSize="{Binding MainWindowFontSize}" Style="{StaticResource TemplateCategoryFluentTabStyle}">
+                  <!-- Semantic Anchor: CategoriesMatchesTemplatesLayout
+                       SSOT: existing CategoryEditText, SelectedCategory, Categories and category commands own all editing and selection.
+                       Invariants: editing stays in the existing TextBox; the action row is at the top like the Templates filter row;
+                       the list has a label and compact font-derived rows; no preview space is allocated in Categories. -->
                   <Grid Margin="0,8,0,0">
                     <Grid.RowDefinitions>
-                      <RowDefinition Height="*" />
                       <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <ListBox ItemsSource="{Binding Categories}"
-                             SelectedItem="{Binding SelectedCategory, Mode=TwoWay}" />
-                    <Grid Grid.Row="1" Margin="0,8,0,0">
+                    <!-- Semantic Anchor: PrimaryTabContentAlignment
+                         SSOT: The category edit row keeps its existing independent 14-DIP layout inset.
+                         Invariants: category edit bindings, controls, commands, and row alignment remain unchanged. -->
+                    <Grid Grid.Row="0" Margin="14,0,0,8">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
-                      <TextBox Text="{Binding CategoryEditText, UpdateSourceTrigger=PropertyChanged}" />
-                      <ui:Button Grid.Column="1" Content="{Binding NewCategoryText}" Command="{Binding NewCategoryCommand}" Margin="8,0,0,0" />
-                      <ui:Button Grid.Column="2" Content="{Binding SaveCategoryText}" Command="{Binding SaveCategoryCommand}" Margin="8,0,0,0" />
-                      <ui:Button Grid.Column="3" Content="{Binding DeleteCategoryText}" Command="{Binding DeleteCategoryCommand}" Margin="8,0,0,0" />
+                      <TextBox x:Name="CategoryNameTextBox"
+                               FontSize="{Binding MainWindowFontSize}"
+                               Text="{Binding CategoryEditText, UpdateSourceTrigger=PropertyChanged}" />
+                      <ui:Button Grid.Column="1" FontSize="{Binding MainWindowFontSize}"
+                                 Content="{Binding NewCategoryText}" Command="{Binding NewCategoryCommand}" Margin="8,0,0,0" />
+                      <ui:Button Grid.Column="2" FontSize="{Binding MainWindowFontSize}"
+                                 Content="{Binding SaveCategoryText}" Command="{Binding SaveCategoryCommand}" Margin="8,0,0,0" />
+                      <ui:Button Grid.Column="3" FontSize="{Binding MainWindowFontSize}"
+                                 Content="{Binding DeleteCategoryText}" Command="{Binding DeleteCategoryCommand}" Margin="8,0,0,0" />
                     </Grid>
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding CategoryLabel}"
+                               FontSize="{Binding MainWindowFontSize}"
+                               FontWeight="SemiBold"
+                               Margin="8,8,0,8" />
+                    <!-- Semantic Anchor: CategoryListDensity
+                         SSOT: MainWindowTemplateRowHeight is the same font-derived density used by the Templates grid.
+                         Invariants: selection does not indent, category names remain read-only in the list,
+                         contrast follows the active theme and context commands remain wired to the existing ViewModel. -->
+                    <ListBox x:Name="CategoriesList" Grid.Row="2" FontSize="{Binding MainWindowFontSize}"
+                             ItemsSource="{Binding Categories}"
+                             PreviewMouseRightButtonDown="CategoriesList_PreviewMouseRightButtonDown"
+                             SelectionMode="Single"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             SelectedItem="{Binding SelectedCategory, Mode=TwoWay}">
+                      <ListBox.ItemContainerStyle>
+                        <Style TargetType="{x:Type ListBoxItem}">
+                          <Setter Property="Height" Value="{Binding DataContext.MainWindowTemplateRowHeight, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}" />
+                          <Setter Property="MinHeight" Value="0" />
+                          <Setter Property="Padding" Value="8,0,2,0" />
+                          <Setter Property="Margin" Value="0" />
+                          <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                          <Setter Property="VerticalContentAlignment" Value="Center" />
+                          <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                          <Setter Property="Background" Value="Transparent" />
+                          <Setter Property="Template">
+                            <Setter.Value>
+                              <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                                <Border Background="{TemplateBinding Background}"
+                                        Padding="{TemplateBinding Padding}">
+                                  <ContentPresenter VerticalAlignment="Center"
+                                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                  <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                  </Trigger>
+                                  <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.5" />
+                                  </Trigger>
+                                </ControlTemplate.Triggers>
+                              </ControlTemplate>
+                            </Setter.Value>
+                          </Setter>
+                        </Style>
+                      </ListBox.ItemContainerStyle>
+                      <ListBox.ContextMenu>
+                        <ContextMenu FontSize="{Binding MainWindowFontSize}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                          <MenuItem Header="{Binding NewCategoryText}" Command="{Binding NewCategoryCommand}" />
+                          <MenuItem Header="{Binding EditText}" Click="EditCategoryMenuItem_Click" />
+                          <MenuItem Header="{Binding SaveCategoryText}" Command="{Binding SaveCategoryCommand}" />
+                          <MenuItem Header="{Binding DeleteCategoryText}" Command="{Binding DeleteCategoryCommand}" />
+                        </ContextMenu>
+                      </ListBox.ContextMenu>
+                    </ListBox>
                   </Grid>
                 </TabItem>
               </TabControl>
             </Border>
 
-            <GridSplitter Grid.Row="2" Height="8" HorizontalAlignment="Stretch" />
+            <!-- Semantic Anchor: PreviewTabVisibility | SSOT: ActiveTabIndex determines whether template preview is allocated layout space. Categories never reserves preview height. -->
+            <!-- Semantic Anchor: PreviewSplitterMaterial
+                 SSOT: ControlStrokeColorDefaultBrush supplies the theme-adaptive separator color.
+                 Invariants: the visible rule is 1 DIP, the transparent 8-DIP hit area remains draggable,
+                 and the existing preview visibility and row sizing logic remain unchanged. -->
+            <GridSplitter x:Name="PreviewSplitter" Grid.Row="2" Height="8"
+                          HorizontalAlignment="Stretch" Background="Transparent"
+                          ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                          Cursor="SizeNS">
+              <GridSplitter.Template>
+                <ControlTemplate TargetType="{x:Type GridSplitter}">
+                  <Border Background="Transparent">
+                    <Border Height="1" VerticalAlignment="Center"
+                            Background="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                  </Border>
+                </ControlTemplate>
+              </GridSplitter.Template>
+            </GridSplitter>
 
-            <Border Grid.Row="3" Style="{StaticResource CardStyle}">
+            <!-- Semantic Anchor: CompactTemplatePreviewHeader
+                 SSOT: the preview TabControl headers identify the preview formats;
+                 no duplicate title is needed. Invariants: tab ordering, bindings,
+                 scroll behavior, splitter geometry and preview visibility are unchanged. -->
+            <Border x:Name="TemplatePreviewBorder" Grid.Row="3" Style="{StaticResource CardStyle}">
               <Grid>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto" />
-                  <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-                <TextBlock Text="{Binding PreviewLabel}" FontWeight="SemiBold" Margin="0,0,0,8" />
-                <TabControl Grid.Row="1">
-                  <TabItem Header="{Binding PlainTextLabel}">
-                    <TextBox Text="{Binding SelectedTemplate.Content.PlainText}"
+                <TabControl FontSize="{Binding MainWindowFontSize}">
+                  <TabItem FontSize="{Binding MainWindowFontSize}" Header="{Binding PlainTextLabel}">
+                    <TextBox FontSize="{Binding MainWindowFontSize}" Text="{Binding SelectedTemplate.Content.PlainText}"
                              IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto" />
                   </TabItem>
-                  <TabItem Header="{Binding RichTextLabel}">
-                    <RichTextBox IsReadOnly="True"
+                  <TabItem FontSize="{Binding MainWindowFontSize}" Header="{Binding RichTextLabel}">
+                    <RichTextBox FontSize="{Binding MainWindowFontSize}" IsReadOnly="True"
                                  VerticalScrollBarVisibility="Auto"
                                  behaviors:RichTextBoxRtfBehavior.RtfText="{Binding SelectedTemplate.Content.Rtf}" />
                   </TabItem>
-                  <TabItem Header="{Binding HtmlLabel}">
+                  <TabItem FontSize="{Binding MainWindowFontSize}" Header="{Binding HtmlLabel}">
                     <wv2:WebView2 x:Name="HtmlPreview" />
                   </TabItem>
-                  <TabItem Header="{Binding ImagesLabel}">
+                  <TabItem FontSize="{Binding MainWindowFontSize}" Header="{Binding ImagesLabel}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                       <ItemsControl ItemsSource="{Binding SelectedTemplate.Content.Images}">
                         <ItemsControl.ItemTemplate>
@@ -233,7 +394,7 @@
                             <Border BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1"
                                     Padding="8" Margin="0,0,0,8">
                               <StackPanel>
-                                <TextBlock Text="{Binding FileName}" Margin="0,0,0,6" />
+                                <TextBlock FontSize="{Binding DataContext.MainWindowFontSize, RelativeSource={RelativeSource AncestorType={x:Type ui:FluentWindow}}}" Text="{Binding FileName}" Margin="0,0,0,6" />
                                 <Image Source="{Binding Bytes, Converter={StaticResource ImageBytesToBitmapSourceConverter}}"
                                        MaxHeight="220" Stretch="Uniform" HorizontalAlignment="Left" />
                               </StackPanel>
@@ -266,8 +427,8 @@
         <TabItem>
           <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="8" MaxWidth="760" HorizontalAlignment="Left">
-              <TextBlock Text="{Binding SettingsText}" Style="{StaticResource HeaderTextStyle}" FontSize="26" />
-              <TextBlock Text="{Binding SettingsDescriptionText}"
+              <TextBlock Text="{Binding SettingsText}" Style="{StaticResource HeaderTextStyle}" FontSize="{Binding MainWindowHeaderFontSize}" />
+              <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SettingsDescriptionText}"
                          Opacity="0.72"
                          Margin="0,4,0,16" TextWrapping="Wrap" />
 
@@ -280,17 +441,32 @@
                   <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                   </Grid.RowDefinitions>
-                  <TextBlock Text="{Binding LanguageLabel}" VerticalAlignment="Center" />
-                  <ComboBox Grid.Column="1"
+                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding LanguageLabel}" VerticalAlignment="Center" />
+                  <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
                             ItemsSource="{Binding AvailableLanguages}"
                             SelectedItem="{Binding SelectedLanguage}"
                             MinWidth="220" />
-                  <TextBlock Grid.Row="1" Text="{Binding ThemeText}" VerticalAlignment="Center" Margin="0,12,0,0" />
-                  <ComboBox Grid.Row="1" Grid.Column="1"
+                  <TextBlock FontSize="{Binding MainWindowFontSize}" Grid.Row="1" Text="{Binding ThemeText}" VerticalAlignment="Center" Margin="0,12,0,0" />
+                  <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Row="1" Grid.Column="1"
                             ItemsSource="{Binding AvailableThemes}"
                             SelectedItem="{Binding SelectedTheme}"
                             MinWidth="220" Margin="0,12,0,0" />
+                  <!-- Semantic Anchor: GlassTransparencyControls | Single shared persisted level; settings
+                       are shown only for Glass themes and do not affect system/opaque themes. -->
+                  <TextBlock Grid.Row="2" FontSize="{Binding MainWindowFontSize}"
+                             Text="{Binding GlassTransparencyText}" VerticalAlignment="Center" Margin="0,12,0,0"
+                             Visibility="{Binding IsGlassThemeSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                  <ComboBox Grid.Row="2" Grid.Column="1" FontSize="{Binding MainWindowFontSize}"
+                            MinWidth="220" Margin="0,12,0,0"
+                            SelectedValuePath="Tag"
+                            SelectedValue="{Binding SelectedGlassTransparencyCode, Mode=TwoWay}"
+                            Visibility="{Binding IsGlassThemeSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <ComboBoxItem Tag="Subtle" Content="{Binding GlassTransparencySubtleText}" />
+                    <ComboBoxItem Tag="Standard" Content="{Binding GlassTransparencyStandardText}" />
+                    <ComboBoxItem Tag="Clear" Content="{Binding GlassTransparencyClearText}" />
+                  </ComboBox>
                 </Grid>
               </Border>
 
@@ -301,13 +477,13 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="{Binding TemplatesFolderLabel}" VerticalAlignment="Center" />
-                  <TextBox Grid.Column="1"
+                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding TemplatesFolderLabel}" VerticalAlignment="Center" />
+                  <TextBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
                            Text="{Binding TemplatesPath}"
                            IsReadOnly="True"
                            MinWidth="360"
                            Margin="0,0,8,0" />
-                  <ui:Button Grid.Column="2"
+                  <ui:Button FontSize="{Binding MainWindowFontSize}" Grid.Column="2"
                              Content="{Binding ChooseFolderText}"
                              Command="{Binding BrowseTemplatesFolderCommand}" />
                 </Grid>
@@ -315,22 +491,22 @@
 
               <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
                 <StackPanel>
-                  <TextBlock Text="{Binding ShortcutText}" FontWeight="SemiBold" Margin="0,0,0,10" />
+                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding ShortcutText}" FontWeight="SemiBold" Margin="0,0,0,10" />
                   <WrapPanel>
-                    <CheckBox Content="{Binding CtrlText}" IsChecked="{Binding ShortcutControl}" Margin="0,0,12,8" />
-                    <CheckBox Content="{Binding ShiftText}" IsChecked="{Binding ShortcutShift}" Margin="0,0,12,8" />
-                    <CheckBox Content="{Binding AltText}" IsChecked="{Binding ShortcutAlt}" Margin="0,0,12,8" />
-                    <CheckBox Content="{Binding WinText}" IsChecked="{Binding ShortcutWin}" Margin="0,0,12,8" />
-                    <TextBox Width="60" Text="{Binding ShortcutKey, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding CtrlText}" IsChecked="{Binding ShortcutControl}" Margin="0,0,12,8" />
+                    <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding ShiftText}" IsChecked="{Binding ShortcutShift}" Margin="0,0,12,8" />
+                    <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding AltText}" IsChecked="{Binding ShortcutAlt}" Margin="0,0,12,8" />
+                    <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding WinText}" IsChecked="{Binding ShortcutWin}" Margin="0,0,12,8" />
+                    <TextBox FontSize="{Binding MainWindowFontSize}" Width="60" Text="{Binding ShortcutKey, UpdateSourceTrigger=PropertyChanged}" />
                   </WrapPanel>
                 </StackPanel>
               </Border>
 
               <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
                 <StackPanel>
-                  <CheckBox Content="{Binding StartWithWindowsLabel}" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,8" />
-                  <CheckBox Content="{Binding MinimizeToTrayLabel}" IsChecked="{Binding MinimizeToTray}" Margin="0,0,0,8" />
-                  <CheckBox Content="{Binding CloseToTrayLabel}" IsChecked="{Binding CloseToTray}" />
+                  <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding StartWithWindowsLabel}" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,8" />
+                  <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding MinimizeToTrayLabel}" IsChecked="{Binding MinimizeToTray}" Margin="0,0,0,8" />
+                  <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding CloseToTrayLabel}" IsChecked="{Binding CloseToTray}" />
                 </StackPanel>
               </Border>
 
@@ -340,17 +516,100 @@
                     <ColumnDefinition Width="180" />
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="{Binding SearchPopupVisibleLinesLabel}"
+                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SearchPopupVisibleLinesLabel}"
                              VerticalAlignment="Center"
                              TextWrapping="Wrap" />
-                  <ComboBox Grid.Column="1"
+                  <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
                             ItemsSource="{Binding SearchPopupVisibleLineOptions}"
                             SelectedItem="{Binding SearchPopupVisibleLines}"
                             MinWidth="220" />
                 </Grid>
               </Border>
 
-              <ui:Button Content="{Binding SaveText}"
+              <!-- Semantic Anchor: MainWindowFontSizeSettingsPreview
+                   SSOT: persisted typography remains MainWindowFontSize; the slider value is a temporary preview during dragging.
+                   Invariants: 10..20 DIP, one-step snapping, sample previews every step, main-window layout updates only after dragging,
+                   the slider occupies exactly one half of the card's available width; popup typography remains independent. -->
+              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                  <DockPanel Margin="0,0,0,8">
+                    <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding MainWindowFontSizeLabel}" VerticalAlignment="Center" />
+                    <TextBlock FontSize="{Binding MainWindowFontSize}" DockPanel.Dock="Right" HorizontalAlignment="Right"
+                               Text="{Binding Value, ElementName=MainWindowFontSizeSlider, StringFormat={}{0:0} DIP}" FontWeight="SemiBold" />
+                  </DockPanel>
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Slider x:Name="MainWindowFontSizeSlider" Grid.Column="0"
+                            Minimum="10" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
+                            Value="{Binding MainWindowFontSize, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
+                            ValueChanged="FontSizeSlider_ValueChanged"
+                            PreviewMouseLeftButtonUp="FontSizeSlider_PreviewMouseLeftButtonUp" />
+                  </Grid>
+                  <Border Margin="0,10,0,0" Padding="10"
+                          BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                          CornerRadius="6" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                    <StackPanel>
+                      <TextBlock Text="{Binding TemplatesText}" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}"
+                                 FontWeight="SemiBold" Margin="0,0,0,5" />
+                      <TextBlock Text="{Binding KeyLabel}" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" FontWeight="SemiBold" />
+                      <TextBlock Text="GPT Quality Gate" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" Margin="0,4,0,6" />
+                      <TextBlock Text="{Binding PreviewLabel}" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" FontWeight="SemiBold" />
+                      <TextBlock Text="Preview text / Vorschautext" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </Border>
+
+              <!-- Semantic Anchor: PopupFontSizeSettingsPreview
+                   SSOT: SearchPopupFontSize remains the persisted popup typography setting; temporary slider values drive the sample during dragging.
+                   Invariants: preview text and labels update immediately, commits occur on drag completion,
+                   and the slider occupies exactly one half of the available card width. -->
+              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                  <DockPanel Margin="0,0,0,8">
+                    <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SearchPopupFontSizeLabel}" VerticalAlignment="Center" />
+                    <TextBlock FontSize="{Binding MainWindowFontSize}" DockPanel.Dock="Right" HorizontalAlignment="Right"
+                               Text="{Binding Value, ElementName=SearchPopupFontSizeSlider, StringFormat={}{0:0} DIP}" FontWeight="SemiBold" />
+                  </DockPanel>
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Slider x:Name="SearchPopupFontSizeSlider" Grid.Column="0"
+                            Minimum="10" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
+                            Value="{Binding SearchPopupFontSize, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
+                            ValueChanged="FontSizeSlider_ValueChanged"
+                            PreviewMouseLeftButtonUp="FontSizeSlider_PreviewMouseLeftButtonUp" />
+                  </Grid>
+                  <Border Margin="0,10,0,0" Padding="10"
+                          BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                          CornerRadius="6" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0">
+                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding KeyLabel}" FontWeight="SemiBold" Margin="0,0,0,5" />
+                        <TextBlock Text="GPT Quality Gate" FontSize="{Binding Value, ElementName=SearchPopupFontSizeSlider}" />
+                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding CategoryLabel}" FontWeight="SemiBold" Margin="0,8,0,4" />
+                        <TextBlock Text="GPT" FontSize="{Binding Value, ElementName=SearchPopupFontSizeSlider}" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="2">
+                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding PreviewLabel}" FontWeight="SemiBold" Margin="0,0,0,5" />
+                        <TextBlock Text="Preview text / Vorschautext" FontSize="{Binding Value, ElementName=SearchPopupFontSizeSlider}" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+              </Border>
+
+              <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding SaveText}"
                       Command="{Binding SaveSettingsCommand}"
                       Appearance="Primary"
                       HorizontalAlignment="Left" />
@@ -359,9 +618,10 @@
         </TabItem>
 
         <TabItem>
+          <!-- Semantic Anchor: CompactAboutLayout | SSOT: This tab defines About-page sizing and spacing. Invariants: identity, attribution, version/license, commands and update status remain visible and functional; sizing changes must not alter their bindings. -->
           <ScrollViewer VerticalScrollBarVisibility="Auto">
             <Border Style="{StaticResource CardStyle}"
-                    MaxWidth="760"
+                    MaxWidth="680"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Margin="8">
@@ -373,12 +633,12 @@
                   <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="112" />
+                  <ColumnDefinition Width="82" />
                   <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Grid Width="96"
-                      Height="96"
+                <Grid Width="72"
+                      Height="72"
                       HorizontalAlignment="Left"
                       VerticalAlignment="Top">
                   <Ellipse>
@@ -389,31 +649,31 @@
                   </Ellipse>
                 </Grid>
 
-                <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                <StackPanel Grid.Column="1" Margin="12,0,0,0">
                   <DockPanel LastChildFill="True">
                     <Image Source="/Ressources/templatepilot.png"
-                           Width="44"
-                           Height="44"
-                           Margin="0,0,12,0"
+                           Width="32"
+                           Height="32"
+                           Margin="0,0,8,0"
                            DockPanel.Dock="Left" />
                     <TextBlock Text="{Binding AppTitle}"
-                               FontSize="24"
+                               FontSize="{Binding MainWindowTitleFontSize}"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center" />
                   </DockPanel>
-                  <TextBlock Text="{Binding AboutDescriptionText}"
+                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding AboutDescriptionText}"
                              TextWrapping="Wrap"
                              Opacity="0.72"
-                             Margin="0,8,0,10" />
-                  <TextBlock>
+                             Margin="0,4,0,6" />
+                  <TextBlock FontSize="{Binding MainWindowFontSize}">
                     <Run Text="{Binding CopyrightText, Mode=OneWay}" />
                   </TextBlock>
-                  <TextBlock Margin="0,4,0,0">
+                  <TextBlock FontSize="{Binding MainWindowFontSize}" Margin="0,4,0,0">
                     <Run Text="{Binding VersionText, Mode=OneWay}" FontWeight="SemiBold" />
                     <Run Text=": " />
                     <Run Text="{Binding ApplicationVersion, Mode=OneWay}" />
                   </TextBlock>
-                  <TextBlock Margin="0,4,0,0">
+                  <TextBlock FontSize="{Binding MainWindowFontSize}" Margin="0,4,0,0">
                     <Run Text="{Binding LicenseText, Mode=OneWay}" FontWeight="SemiBold" />
                     <Run Text=": GPLv3" />
                   </TextBlock>
@@ -421,15 +681,15 @@
 
                 <Grid Grid.Row="1"
                       Grid.ColumnSpan="2"
-                      Margin="0,18,0,0">
+                      Margin="0,12,0,0">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
 
-                  <Button Command="{Binding OpenKoFiCommand}"
-                          Width="232"
-                          Height="58"
+                  <Button FontSize="{Binding MainWindowFontSize}" Command="{Binding OpenKoFiCommand}"
+                          Width="180"
+                          Height="46"
                           Padding="0"
                           BorderThickness="0"
                           Background="Transparent"
@@ -441,31 +701,31 @@
                   </Button>
 
                   <StackPanel Grid.Column="1"
-                              Margin="18,0,0,0">
-                    <ui:Button Content="{Binding RepositoryText}"
+                              Margin="12,0,0,0">
+                    <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding RepositoryText}"
                                Command="{Binding OpenRepositoryCommand}"
                                HorizontalAlignment="Left" />
-                    <ui:Button Content="{Binding ReleasesText}"
+                    <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding ReleasesText}"
                                Command="{Binding OpenReleasesCommand}"
                                HorizontalAlignment="Left"
-                               Margin="0,8,0,0" />
+                               Margin="0,6,0,0" />
                   </StackPanel>
                 </Grid>
 
                 <Separator Grid.Row="2"
                            Grid.ColumnSpan="2"
-                           Margin="0,18,0,14" />
+                           Margin="0,12,0,10" />
 
                 <Grid Grid.Row="3" Grid.ColumnSpan="2">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="{Binding UpdateStatus}"
+                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding UpdateStatus}"
                              VerticalAlignment="Center"
                              TextWrapping="Wrap"
                              Margin="0,0,12,0" />
-                  <ui:Button Grid.Column="1"
+                  <ui:Button FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
                              Content="{Binding CheckForUpdatesText}"
                              Command="{Binding CheckForUpdatesCommand}"
                              Appearance="Primary" />

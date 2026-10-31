@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
 using TemplatePilot.Models;
@@ -46,8 +46,10 @@ public sealed class SearchPopupViewModel : ViewModelBase
     public string NameLabel => _localization["Name"];
     public string CategoryLabel => _localization["Category"];
     public string PreviewLabel => _localization["Preview"];
+    // Semantic Anchor: PopupTypographyRuntime | SSOT: consume persisted AppSettings size in every popup.
+    public int SearchPopupFontSize => Math.Clamp(_settings.Current.SearchPopupFontSize, 10, 20);
     public int SearchPopupVisibleLines => Math.Clamp(_settings.Current.SearchPopupVisibleLines, 1, 10);
-    public double SearchPopupTextMaxHeight => SearchPopupVisibleLines * 18d;
+    public double SearchPopupTextMaxHeight => SearchPopupVisibleLines * (SearchPopupFontSize + 5d);
     public string CategoryFilterLabel => _localization["CategoryFilter"];
     public string AllCategoriesText => _localization["AllCategories"];
     public string CategoryFilterSummary

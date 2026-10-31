@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Data;
@@ -11,6 +11,7 @@ namespace TemplatePilot.ViewModels;
 public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 {
     public event Action<string, bool>? UpdateDialogRequested;
+    public event Func<DeleteConfirmationRequest, Task<bool>>? DeleteConfirmationRequested;
 
     private readonly TemplateCacheService _cache;
     private readonly TemplateEditorService _editorService;
@@ -38,6 +39,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private TemplatePackage? _selectedTemplate;
     private string _selectedLanguage;
     private string _selectedTheme;
+    private string _selectedGlassTransparencyCode;
     private string _shortcutKey;
     private bool _shortcutControl;
     private bool _shortcutShift;
@@ -47,6 +49,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _minimizeToTray;
     private bool _closeToTray;
     private int _searchPopupVisibleLines;
+    private int _searchPopupFontSize;
+    private int _mainWindowFontSize;
     private string _templatesPath;
     private TemplateEditorViewModel? _activeEditor;
     private string _updateStatus = string.Empty;
@@ -92,6 +96,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
         _selectedLanguage = _localization.GetLanguageDisplayName(_settings.Current.Language);
         _selectedTheme = ToThemeDisplayName(_settings.Current.Theme);
+        _selectedGlassTransparencyCode = _settings.Current.GlassTransparency;
         _shortcutKey = _settings.Current.Shortcut.Key;
         _shortcutControl = _settings.Current.Shortcut.Control;
         _shortcutShift = _settings.Current.Shortcut.Shift;
@@ -101,7 +106,15 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         _minimizeToTray = _settings.Current.MinimizeToTray;
         _closeToTray = _settings.Current.CloseToTray;
         _searchPopupVisibleLines = Math.Clamp(_settings.Current.SearchPopupVisibleLines, 1, 10);
+        _searchPopupFontSize = Math.Clamp(_settings.Current.SearchPopupFontSize, 10, 20);
+        _mainWindowFontSize = Math.Clamp(_settings.Current.MainWindowFontSize, 10, 20);
         _templatesPath = _paths.TemplatesPath;
+        // Semantic Anchor: MainWindowStartupView
+        // SSOT: This constructor defines the startup page and tab independently of legacy persisted view indexes.
+        // Invariants: every new main window starts on Templates; user navigation still works after startup;
+        // the left pane collapse preference remains independently persisted.
+        _selectedNavigationIndex = 0;
+        _activeTabIndex = 0;
 
         TemplatesView = CollectionViewSource.GetDefaultView(Templates);
         TemplatesView.Filter = FilterTemplate;
@@ -188,6 +201,15 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string ThemeSystemText => _localization["ThemeSystem"];
     public string ThemeLightText => _localization["ThemeLight"];
     public string ThemeDarkText => _localization["ThemeDark"];
+    public string ThemeLiquidGlassText => _localization["ThemeLiquidGlass"];
+    public string ThemeGlassBlueText => _localization["ThemeGlassBlue"];
+    public string ThemeGlassCrystalText => _localization["ThemeGlassCrystal"];
+    public string ThemeGlassGraphiteText => _localization["ThemeGlassGraphite"];
+    public string ThemeGlassVioletText => _localization["ThemeGlassViolet"];
+    public string GlassTransparencyText => _localization["GlassTransparency"];
+    public string GlassTransparencySubtleText => _localization["GlassTransparencySubtle"];
+    public string GlassTransparencyStandardText => _localization["GlassTransparencyStandard"];
+    public string GlassTransparencyClearText => _localization["GlassTransparencyClear"];
     public string SettingsDescriptionText => _localization["SettingsDescription"];
     public string AboutDescriptionText => $"{AppConstants.AppName} {_localization["AboutDescription"]}";
     public string VersionText => _localization["Version"];
@@ -198,8 +220,11 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string AltText => _localization["Alt"];
     public string WinText => _localization["Win"];
     public string ApplicationVersion => TemplatePilot.Infrastructure.AppConstants.AppVersion;
+    // Semantic Anchor: ThemeVariantOptions
+    // SSOT: All user-visible themes are mapped to stable persisted identities in ToThemeCode.
     public IReadOnlyList<string> AvailableThemes =>
-        new[] { ThemeSystemText, ThemeLightText, ThemeDarkText };
+        new[] { ThemeSystemText, ThemeLightText, ThemeDarkText, ThemeLiquidGlassText,
+            ThemeGlassBlueText, ThemeGlassCrystalText, ThemeGlassGraphiteText, ThemeGlassVioletText };
     public string TemplatesText => _localization["Templates"];
     public string SearchTextLabel => _localization["Search"];
     public string NewText => _localization["New"];
@@ -209,6 +234,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string ImportText => _localization["Import"];
     public string ExportText => _localization["Export"];
     public string SettingsText => _localization["Settings"];
+    public string NavigationText => _localization["Navigation"];
     public string ShortcutText => _localization["Shortcut"];
     public string SaveText => _localization["Save"];
     public string PlainTextLabel => _localization["PlainText"];
@@ -230,6 +256,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string MinimizeToTrayLabel => _localization["MinimizeToTray"];
     public string CloseToTrayLabel => _localization["CloseToTray"];
     public string SearchPopupVisibleLinesLabel => _localization["SearchPopupVisibleLines"];
+    public string SearchPopupFontSizeLabel => _localization["SearchPopupFontSize"];
+    public string MainWindowFontSizeLabel => _localization["MainWindowFontSize"];
     public IReadOnlyList<int> SearchPopupVisibleLineOptions { get; } = Enumerable.Range(1, 10).ToList();
     public string TemplatesFolderLabel => _localization["TemplatesFolder"];
     public string ChooseFolderText => _localization["ChooseFolder"];
@@ -339,7 +367,24 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string SelectedTheme
     {
         get => _selectedTheme;
-        set => SetProperty(ref _selectedTheme, value);
+        set
+        {
+            if (SetProperty(ref _selectedTheme, value))
+            {
+                OnPropertyChanged(nameof(IsGlassThemeSelected));
+            }
+        }
+    }
+
+    // Semantic Anchor: GlassTransparencySelection
+    // SSOT: persisted values are stable codes, localized labels are view-only.
+    // Invariant: changing a theme never overwrites the chosen Glass transparency level.
+    public bool IsGlassThemeSelected => AppThemeService.IsGlassTheme(ToThemeCode(SelectedTheme));
+
+    public string SelectedGlassTransparencyCode
+    {
+        get => _selectedGlassTransparencyCode;
+        set => SetProperty(ref _selectedGlassTransparencyCode, value);
     }
 
     public string ShortcutKey
@@ -395,6 +440,44 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         get => _searchPopupVisibleLines;
         set => SetProperty(ref _searchPopupVisibleLines, Math.Clamp(value, 1, 10));
     }
+
+    // Semantic Anchor: LivePopupTypographyPreview | SSOT: the settings slider and its sample preview use this one property.
+    // Invariants: adjust list and preview together, preserve 10..20 DIP range, and show changes immediately without saving.
+    public int SearchPopupFontSize
+    {
+        get => _searchPopupFontSize;
+        set => SetProperty(ref _searchPopupFontSize, Math.Clamp(value, 10, 20));
+    }
+
+    // Semantic Anchor: MainWindowTypographyLiveState
+    // SSOT: The window, its preview, and the settings control all bind to this value.
+    // Invariants: only 10..20 DIP are accepted; relative heading/footer hierarchy is preserved; popup typography is unchanged.
+    public int MainWindowFontSize
+    {
+        get => _mainWindowFontSize;
+        set
+        {
+            if (SetProperty(ref _mainWindowFontSize, Math.Clamp(value, 10, 20)))
+            {
+                OnPropertyChanged(nameof(MainWindowHeaderFontSize));
+                OnPropertyChanged(nameof(MainWindowTitleFontSize));
+                OnPropertyChanged(nameof(MainWindowFooterFontSize));
+                OnPropertyChanged(nameof(MainWindowVersionFontSize));
+                OnPropertyChanged(nameof(MainWindowTemplateRowHeight));
+            }
+        }
+    }
+
+    public int MainWindowHeaderFontSize => MainWindowFontSize + 14;
+    public int MainWindowTitleFontSize => MainWindowFontSize + 8;
+    public int MainWindowFooterFontSize => MainWindowFontSize + 1;
+    public int MainWindowVersionFontSize => Math.Max(9, MainWindowFontSize - 1);
+
+    // Semantic Anchor: MainWindowTemplateRowDensity
+    // SSOT: This derived value is the only row-height source for the main template DataGrid.
+    // Invariants: the allowed 10..20-DIP font range yields 22..32-DIP rows; no stored duplicate height;
+    // font changes immediately notify the grid without affecting its selection or other windows.
+    public double MainWindowTemplateRowHeight => MainWindowFontSize + 12d;
 
     public string TemplatesPath
     {
@@ -747,6 +830,11 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// Semantic Anchor: CategoryDeletionConfirmation
+    /// SSOT: This method owns destructive category deletion confirmation for the main window workflow.
+    /// Invariants: the confirmation must include the concrete category name, preserve the uncategorized-warning text, and deletion must only proceed after an explicit affirmative result.
+    /// </summary>
     private async Task DeleteCategoryAsync(CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(SelectedCategory))
@@ -754,14 +842,19 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (!_messages.Confirm(_localization["ConfirmDeleteCategory"]))
+        string categoryName = SelectedCategory;
+        string confirmationMessage = string.Format(
+            _localization["ConfirmDeleteCategoryNamed"],
+            categoryName);
+
+        if (!await ConfirmDeleteAsync(confirmationMessage).ConfigureAwait(true))
         {
             return;
         }
 
         try
         {
-            await _categories.DeleteAsync(SelectedCategory, cancellationToken).ConfigureAwait(true);
+            await _categories.DeleteAsync(categoryName, cancellationToken).ConfigureAwait(true);
             _cache.Invalidate();
             SelectedCategory = null;
             CategoryEditText = string.Empty;
@@ -836,6 +929,11 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// Semantic Anchor: TemplateDeletionConfirmation
+    /// SSOT: This method owns destructive template deletion confirmation for the main window workflow.
+    /// Invariants: the confirmation must include the concrete template display name and deletion must only proceed after an explicit affirmative result.
+    /// </summary>
     private async Task DeleteTemplateAsync(CancellationToken cancellationToken)
     {
         if (SelectedTemplate is null)
@@ -843,12 +941,18 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (!_messages.Confirm(_localization["ConfirmDelete"]))
+        TemplatePackage templateToDelete = SelectedTemplate;
+        string templateDisplayName = templateToDelete.DisplayName;
+        string confirmationMessage = string.Format(
+            _localization["ConfirmDeleteTemplateNamed"],
+            templateDisplayName);
+
+        if (!await ConfirmDeleteAsync(confirmationMessage).ConfigureAwait(true))
         {
             return;
         }
 
-        await _editorService.DeleteAsync(SelectedTemplate, cancellationToken).ConfigureAwait(true);
+        await _editorService.DeleteAsync(templateToDelete, cancellationToken).ConfigureAwait(true);
         SelectedTemplate = null;
         await RefreshTemplatesAsync(cancellationToken).ConfigureAwait(true);
     }
@@ -863,6 +967,26 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         var duplicate = await _editorService.DuplicateAsync(SelectedTemplate, cancellationToken).ConfigureAwait(true);
         await RefreshTemplatesAsync(cancellationToken).ConfigureAwait(true);
         SelectedTemplate = Templates.FirstOrDefault(x => x.Metadata.Id == duplicate.Metadata.Id);
+    }
+
+    /// <summary>
+    /// Semantic Anchor: DeleteConfirmationBridge
+    /// SSOT: All view-model initiated destructive confirmations flow through this method.
+    /// Invariants: prefer the themed window-hosted dialog when available, preserve a working fallback for non-window callers, and return true only for an explicit affirmative confirmation.
+    /// </summary>
+    private async Task<bool> ConfirmDeleteAsync(string message)
+    {
+        Func<DeleteConfirmationRequest, Task<bool>>? handler = DeleteConfirmationRequested;
+        if (handler is not null)
+        {
+            return await handler(new DeleteConfirmationRequest(
+                _localization["Delete"],
+                message,
+                _localization["Delete"],
+                _localization["Cancel"])).ConfigureAwait(true);
+        }
+
+        return _messages.Confirm(message);
     }
 
     private async Task ImportAsync(CancellationToken cancellationToken)
@@ -895,6 +1019,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         var next = _settings.Current.Clone();
         next.Language = _localization.GetLanguageCode(SelectedLanguage);
         next.Theme = ToThemeCode(SelectedTheme);
+        next.GlassTransparency = SelectedGlassTransparencyCode;
         next.Shortcut.Key = ShortcutKey.Trim();
         next.Shortcut.Control = ShortcutControl;
         next.Shortcut.Shift = ShortcutShift;
@@ -904,6 +1029,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         next.MinimizeToTray = MinimizeToTray;
         next.CloseToTray = CloseToTray;
         next.SearchPopupVisibleLines = Math.Clamp(SearchPopupVisibleLines, 1, 10);
+        next.SearchPopupFontSize = SearchPopupFontSize;
+        next.MainWindowFontSize = MainWindowFontSize;
         next.TemplatesPath = Path.GetFullPath(TemplatesPath.Trim());
 
         var templatesPathChanged = !string.Equals(
@@ -930,7 +1057,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         _localization.SetLanguage(next.Language);
         _selectedLanguage = _localization.GetLanguageDisplayName(next.Language);
         _selectedTheme = ToThemeDisplayName(next.Theme);
-        _themeService.ApplyTheme(next.Theme);
+        _selectedGlassTransparencyCode = next.GlassTransparency;
+        _themeService.ApplyTheme(next.Theme, next.GlassTransparency);
         _startup.SetEnabled(next.StartWithWindows);
 
         if (templatesPathChanged)
@@ -952,8 +1080,19 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Semantic Anchor: ThemeIdentityMapping
+    // SSOT: stable theme codes map to localized names here; old codes and Glass variants remain round-trippable.
     private string ToThemeDisplayName(string theme)
     {
+        if (string.Equals(theme, "GlassBlue", StringComparison.OrdinalIgnoreCase)) return ThemeGlassBlueText;
+        if (string.Equals(theme, "GlassCrystal", StringComparison.OrdinalIgnoreCase)) return ThemeGlassCrystalText;
+        if (string.Equals(theme, "GlassGraphite", StringComparison.OrdinalIgnoreCase)) return ThemeGlassGraphiteText;
+        if (string.Equals(theme, "GlassViolet", StringComparison.OrdinalIgnoreCase)) return ThemeGlassVioletText;
+        if (string.Equals(theme, "LiquidGlass", StringComparison.OrdinalIgnoreCase))
+        {
+            return ThemeLiquidGlassText;
+        }
+
         if (string.Equals(theme, "Dark", StringComparison.OrdinalIgnoreCase))
         {
             return ThemeDarkText;
@@ -969,6 +1108,15 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     private string ToThemeCode(string theme)
     {
+        if (string.Equals(theme, ThemeGlassBlueText, StringComparison.CurrentCultureIgnoreCase)) return "GlassBlue";
+        if (string.Equals(theme, ThemeGlassCrystalText, StringComparison.CurrentCultureIgnoreCase)) return "GlassCrystal";
+        if (string.Equals(theme, ThemeGlassGraphiteText, StringComparison.CurrentCultureIgnoreCase)) return "GlassGraphite";
+        if (string.Equals(theme, ThemeGlassVioletText, StringComparison.CurrentCultureIgnoreCase)) return "GlassViolet";
+        if (string.Equals(theme, ThemeLiquidGlassText, StringComparison.CurrentCultureIgnoreCase))
+        {
+            return "LiquidGlass";
+        }
+
         if (string.Equals(theme, ThemeDarkText, StringComparison.CurrentCultureIgnoreCase))
         {
             return "Dark";
@@ -1031,4 +1179,25 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         Failed
     }
 
+}
+
+
+public sealed class DeleteConfirmationRequest
+{
+    public DeleteConfirmationRequest(
+        string title,
+        string message,
+        string primaryButtonText,
+        string closeButtonText)
+    {
+        Title = title;
+        Message = message;
+        PrimaryButtonText = primaryButtonText;
+        CloseButtonText = closeButtonText;
+    }
+
+    public string Title { get; }
+    public string Message { get; }
+    public string PrimaryButtonText { get; }
+    public string CloseButtonText { get; }
 }

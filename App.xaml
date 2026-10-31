@@ -11,6 +11,9 @@
         <ResourceDictionary Source="Dimensions.xaml" />
         <ResourceDictionary Source="Styles.xaml" />
       </ResourceDictionary.MergedDictionaries>
+      <!-- Semantic Anchor: ThemeMaterialDefaults | Values are replaced only by AppThemeService on a theme change. -->
+      <SolidColorBrush x:Key="TemplatePilotWindowSurfaceBrush" Color="#FF202020" />
+      <SolidColorBrush x:Key="TemplatePilotCardSurfaceBrush" Color="#FF292929" />
       <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
       <helpers:ImageBytesToBitmapSourceConverter x:Key="ImageBytesToBitmapSourceConverter" />
     </ResourceDictionary>

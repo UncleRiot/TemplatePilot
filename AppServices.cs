@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -19,13 +19,21 @@ namespace TemplatePilot.Services;
 [SupportedOSPlatform("windows7.0")]
 public sealed class AppThemeService
 {
+    private readonly LoggingService _logging;
     private Window? _watchedWindow;
     private bool _isWatchingSystemTheme;
+    private bool _glassBackdropEnabled;
+    private readonly HashSet<Wpf.Ui.Controls.FluentWindow> _secondaryWindows = new();
 
-    public void RegisterMainWindow(Window window, string themeMode)
+    public AppThemeService(LoggingService logging)
+    {
+        _logging = logging;
+    }
+
+    public void RegisterMainWindow(Window window, string themeMode, string transparencyMode = "Standard")
     {
         _watchedWindow = window;
-        ApplyTheme(themeMode);
+        ApplyTheme(themeMode, transparencyMode);
     }
 
     public void ApplyDefaultTheme()
@@ -33,7 +41,112 @@ public sealed class AppThemeService
         ApplyTheme("System");
     }
 
-    public void ApplyTheme(string themeMode)
+    // Semantic Anchor: SecondaryWindowThemeLifecycle
+    // SSOT: AppThemeService determines the material for every application-owned FluentWindow.
+    // Invariants: preserve existing window chrome, input and focus behavior; use the same shared
+    // palette as the main window; unregister closed windows; never force a native backdrop
+    // when the current theme, OS or High Contrast mode disallows it.
+    public void RegisterSecondaryWindow(Wpf.Ui.Controls.FluentWindow window)
+    {
+        if (!_secondaryWindows.Add(window))
+        {
+            return;
+        }
+
+        window.SetResourceReference(Control.BackgroundProperty, "TemplatePilotWindowSurfaceBrush");
+        window.Loaded += SecondaryWindow_Loaded;
+        window.Closed += SecondaryWindow_Closed;
+        ApplySecondaryWindowBackdrop(window);
+    }
+
+    private void SecondaryWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Wpf.Ui.Controls.FluentWindow window)
+        {
+            ApplySecondaryWindowBackdrop(window);
+        }
+    }
+
+    private void SecondaryWindow_Closed(object? sender, EventArgs e)
+    {
+        if (sender is Wpf.Ui.Controls.FluentWindow window)
+        {
+            window.Loaded -= SecondaryWindow_Loaded;
+            window.Closed -= SecondaryWindow_Closed;
+            _secondaryWindows.Remove(window);
+        }
+    }
+
+    // Semantic Anchor: SecondaryWindowBackdropComposition
+    // SSOT: All secondary FluentWindows use this single WPF-UI backdrop lifecycle.
+    // Invariants: preserve the existing WindowStyle, ExtendsContentIntoTitleBar,
+    // sizing and input behavior. A Glass theme extends the native glass frame into
+    // the client area; normal themes restore the original minimal frame thickness.
+    // A successful native API call alone does not guarantee visible blur (OS-controlled).
+    private void ApplySecondaryWindowBackdrop(Wpf.Ui.Controls.FluentWindow window)
+    {
+        if (!window.IsLoaded)
+        {
+            return;
+        }
+
+        // WPF-UI normally configures this in FluentWindow.OnBackdropTypeChanged.
+        // Secondary windows do not use WindowBackdropType because their existing
+        // ExtendsContentIntoTitleBar=False layout would reject that property.
+        var chrome = System.Windows.Shell.WindowChrome.GetWindowChrome(window);
+        if (chrome is null)
+        {
+            chrome = new System.Windows.Shell.WindowChrome
+            {
+                CaptionHeight = 0,
+                CornerRadius = new CornerRadius(0),
+                ResizeBorderThickness = window.ResizeMode == ResizeMode.NoResize
+                    ? new Thickness(0)
+                    : new Thickness(4),
+                UseAeroCaptionButtons = false
+            };
+            System.Windows.Shell.WindowChrome.SetWindowChrome(window, chrome);
+        }
+
+        chrome.GlassFrameThickness = _glassBackdropEnabled
+            ? new Thickness(-1)
+            : new Thickness(0.00001);
+
+        if (!_glassBackdropEnabled)
+        {
+            Wpf.Ui.Controls.WindowBackdrop.RemoveBackdrop(window);
+            window.SetResourceReference(Control.BackgroundProperty, "TemplatePilotWindowSurfaceBrush");
+            return;
+        }
+
+        bool applied = Wpf.Ui.Controls.WindowBackdrop.RemoveBackground(window)
+            && Wpf.Ui.Controls.WindowBackdrop.ApplyBackdrop(
+                window, Wpf.Ui.Controls.WindowBackdropType.Acrylic);
+        if (!applied)
+        {
+            _logging.Warning($"Glass theme: native Desktop Acrylic could not be enabled for {window.GetType().Name}.");
+        }
+    }
+
+    // Semantic Anchor: GlassThemeIdentity
+    // SSOT: All supported Glass theme identities live here and use the same Windows Acrylic material.
+    // Invariant: each code is stable across language changes and is recognized by settings validation.
+    public static bool IsGlassTheme(string? themeMode)
+    {
+        return themeMode is not null && (string.Equals(themeMode, "LiquidGlass", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(themeMode, "GlassBlue", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(themeMode, "GlassCrystal", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(themeMode, "GlassGraphite", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(themeMode, "GlassViolet", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Semantic Anchor: AppThemeMaterialSSOT
+    // SSOT: The selected theme and one transparency preference define all window/card Glass surface brushes.
+    // Invariants: existing System/Light/Dark themes keep their appearance; native Desktop Acrylic remains
+    // OS-managed and deactivates its blur when Windows makes the window inactive; the tinted material
+    // surfaces stay unchanged across activation changes. No custom blur or compositor is introduced.
+    // High Contrast and unsupported Windows builds use legible opaque theme surfaces.
+    public void ApplyTheme(string themeMode, string transparencyMode = "Standard")
     {
         if (_isWatchingSystemTheme && _watchedWindow is not null)
         {
@@ -41,17 +154,23 @@ public sealed class AppThemeService
             _isWatchingSystemTheme = false;
         }
 
-        if (string.Equals(themeMode, "Dark", StringComparison.OrdinalIgnoreCase))
+        bool isGlass = IsGlassTheme(themeMode);
+        bool isCrystal = string.Equals(themeMode, "GlassCrystal", StringComparison.OrdinalIgnoreCase);
+        bool acrylicAvailable = OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621);
+        bool enableGlass = isGlass && acrylicAvailable && !System.Windows.SystemParameters.HighContrast;
+        _glassBackdropEnabled = enableGlass;
+
+        if (isGlass || string.Equals(themeMode, "Dark", StringComparison.OrdinalIgnoreCase))
         {
             Wpf.Ui.Appearance.ApplicationThemeManager.Apply(
-                Wpf.Ui.Appearance.ApplicationTheme.Dark,
-                Wpf.Ui.Controls.WindowBackdropType.Mica);
+                isCrystal ? Wpf.Ui.Appearance.ApplicationTheme.Light : Wpf.Ui.Appearance.ApplicationTheme.Dark,
+                Wpf.Ui.Controls.WindowBackdropType.Acrylic);
         }
         else if (string.Equals(themeMode, "Light", StringComparison.OrdinalIgnoreCase))
         {
             Wpf.Ui.Appearance.ApplicationThemeManager.Apply(
                 Wpf.Ui.Appearance.ApplicationTheme.Light,
-                Wpf.Ui.Controls.WindowBackdropType.Mica);
+                Wpf.Ui.Controls.WindowBackdropType.Acrylic);
         }
         else
         {
@@ -61,9 +180,97 @@ public sealed class AppThemeService
             {
                 Wpf.Ui.Appearance.SystemThemeWatcher.Watch(
                     _watchedWindow,
-                    Wpf.Ui.Controls.WindowBackdropType.Mica);
+                    Wpf.Ui.Controls.WindowBackdropType.Acrylic);
                 _isWatchingSystemTheme = true;
             }
+        }
+
+        var resources = System.Windows.Application.Current.Resources;
+        if (enableGlass)
+        {
+            // Semantic Anchor: GlassMaterialPalette
+            // SSOT: Shared levels control Alpha; stable theme codes select RGB tint only.
+            // Invariant: a lighter Clear surface reveals more native Acrylic than Standard or Subtle;
+            // no palette modification must alter the chosen Windows backdrop or other non-Glass themes.
+            int cardAlpha = transparencyMode switch
+            {
+                "Subtle" => 172,
+                "Clear" => 72,
+                _ => 112
+            };
+            byte windowAlpha = transparencyMode switch
+            {
+                "Subtle" => 52,
+                "Clear" => 16,
+                _ => 32
+            };
+
+            var color = themeMode.ToUpperInvariant() switch
+            {
+                "GLASSBLUE" => System.Windows.Media.Color.FromRgb(32, 75, 114),
+                "GLASSCRYSTAL" => System.Windows.Media.Color.FromRgb(195, 211, 226),
+                "GLASSGRAPHITE" => System.Windows.Media.Color.FromRgb(49, 55, 64),
+                "GLASSVIOLET" => System.Windows.Media.Color.FromRgb(83, 65, 110),
+                _ => System.Windows.Media.Color.FromRgb(32, 32, 32)
+            };
+
+            resources["TemplatePilotWindowSurfaceBrush"] = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(windowAlpha, color.R, color.G, color.B));
+            resources["TemplatePilotCardSurfaceBrush"] = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb((byte)cardAlpha, color.R, color.G, color.B));
+        }
+        else
+        {
+            resources["TemplatePilotWindowSurfaceBrush"] = System.Windows.Application.Current.TryFindResource("ApplicationBackgroundBrush")
+                ?? System.Windows.Media.Brushes.Transparent;
+            resources["TemplatePilotCardSurfaceBrush"] = System.Windows.Application.Current.TryFindResource("CardBackgroundFillColorDefaultBrush")
+                ?? System.Windows.Media.Brushes.Transparent;
+        }
+
+        // Semantic Anchor: WindowBackdropLifecycle
+        // Invariants: FluentWindow.WindowBackdropType is the native DWM source; the window's brush
+        // remains a DynamicResource after a theme switch. Color overlays remain even while inactive;
+        // actual inactive native Acrylic blur is controlled by Windows, not the app.
+        if (_watchedWindow is Wpf.Ui.Controls.FluentWindow fluentWindow)
+        {
+            fluentWindow.WindowBackdropType = enableGlass
+                ? Wpf.Ui.Controls.WindowBackdropType.Acrylic
+                : Wpf.Ui.Controls.WindowBackdropType.None;
+
+            if (enableGlass && fluentWindow.IsLoaded)
+            {
+                bool applied = Wpf.Ui.Controls.WindowBackdrop.RemoveBackground(fluentWindow)
+                    && Wpf.Ui.Controls.WindowBackdrop.ApplyBackdrop(
+                        fluentWindow,
+                        Wpf.Ui.Controls.WindowBackdropType.Acrylic);
+                if (!applied)
+                {
+                    _logging.Warning("Glass theme: WPF-UI could not activate native Desktop Acrylic on the main window.");
+                }
+            }
+
+            fluentWindow.SetResourceReference(
+                System.Windows.Controls.Control.BackgroundProperty,
+                "TemplatePilotWindowSurfaceBrush");
+        }
+
+        // Semantic Anchor: SecondaryWindowsFollowTheme
+        // Invariant: existing secondary windows receive theme changes using the same native
+        // material decision as newly opened windows, not a separate per-window theme state.
+        foreach (var secondaryWindow in _secondaryWindows)
+        {
+            secondaryWindow.SetResourceReference(
+                Control.BackgroundProperty, "TemplatePilotWindowSurfaceBrush");
+            ApplySecondaryWindowBackdrop(secondaryWindow);
+        }
+
+        if (isGlass && !acrylicAvailable)
+        {
+            _logging.Warning("Glass themes require Windows 11 build 22621 or newer; using opaque theme surfaces.");
+        }
+        else if (isGlass && System.Windows.SystemParameters.HighContrast)
+        {
+            _logging.Warning("Glass theme: high contrast is enabled; keeping opaque theme surfaces for accessibility.");
         }
     }
 }
@@ -753,12 +960,15 @@ public sealed class LocalizationService
             ["MinimizeToTray"] = "Minimize to tray",
             ["CloseToTray"] = "Close to tray",
             ["SearchPopupVisibleLines"] = "Visible text lines per search result",
+            ["SearchPopupFontSize"] = "Search popup font size",
+            ["MainWindowFontSize"] = "Main window font size",
             ["UserName"] = "Name",
             ["Company"] = "Company",
             ["NoTemplateSelected"] = "No template selected",
             ["SearchPopupHint"] = "Type to filter templates",
             ["Insert"] = "Insert",
             ["ConfirmDelete"] = "Delete selected template?",
+            ["ConfirmDeleteTemplateNamed"] = "Delete template \"{0}\"?",
             ["Error"] = "Error",
             ["HotkeyConflict"] = "The configured shortcut is already used by another application.",
             ["TemplateKeyRequired"] = "Shortcut is required.",
@@ -773,6 +983,7 @@ public sealed class LocalizationService
             ["AddCategory"] = "Add category",
             ["CategoryInUse"] = "The category is still used by at least one template.",
             ["ConfirmDeleteCategory"] = "Delete the selected category? Templates using it will remain and become uncategorized.",
+            ["ConfirmDeleteCategoryNamed"] = "Delete category \"{0}\"? Templates using it will remain and become uncategorized.",
             ["Exit"] = "Exit",
             ["RemoveImage"] = "Remove image",
             ["DragDropImage"] = "Drag and drop image files here.",
@@ -787,6 +998,15 @@ public sealed class LocalizationService
             ["ThemeSystem"] = "System",
             ["ThemeLight"] = "Light",
             ["ThemeDark"] = "Dark",
+            ["ThemeLiquidGlass"] = "Liquid Glass",
+            ["ThemeGlassBlue"] = "Blue Glass",
+            ["ThemeGlassCrystal"] = "Crystal Glass",
+            ["ThemeGlassGraphite"] = "Graphite Glass",
+            ["ThemeGlassViolet"] = "Violet Glass",
+            ["GlassTransparency"] = "Glass transparency",
+            ["GlassTransparencySubtle"] = "Subtle",
+            ["GlassTransparencyStandard"] = "Standard",
+            ["GlassTransparencyClear"] = "Clear",
             ["SettingsDescription"] = "Configure language, theme, shortcuts, and startup behavior.",
             ["TemplatesFolder"] = "Templates folder",
             ["ChooseFolder"] = "Choose folder",
@@ -916,10 +1136,12 @@ public sealed class MessageBoxService
 public sealed class CategoryDialogService
 {
     private readonly LocalizationService _localization;
+    private readonly AppThemeService _themeService;
 
-    public CategoryDialogService(LocalizationService localization)
+    public CategoryDialogService(LocalizationService localization, AppThemeService themeService)
     {
         _localization = localization;
+        _themeService = themeService;
     }
 
     public string? ShowCategoryDialog(string title, string initialValue)
@@ -986,6 +1208,10 @@ public sealed class CategoryDialogService
             ResizeMode = ResizeMode.NoResize,
             ShowInTaskbar = false
         };
+
+        // Semantic Anchor: CategoryDialogThemeRegistration
+        // Invariant: the category input dialog shares the selected theme without altering validation.
+        _themeService.RegisterSecondaryWindow(window);
 
         okButton.Click += (_, _) =>
         {
@@ -1082,6 +1308,7 @@ public sealed class SearchPopupService
     private readonly WindowPlacementService _windowPlacement;
     private readonly SettingsService _settings;
     private readonly CategoryCatalogService _categories;
+    private readonly AppThemeService _themeService;
 
     public SearchPopupService(
         TemplateResolver resolver,
@@ -1090,8 +1317,10 @@ public sealed class SearchPopupService
         LoggingService logging,
         WindowPlacementService windowPlacement,
         SettingsService settings,
-        CategoryCatalogService categories)
+        CategoryCatalogService categories,
+        AppThemeService themeService)
     {
+        _themeService = themeService;
         _resolver = resolver;
         _localization = localization;
         _foreground = foreground;
@@ -1108,6 +1337,9 @@ public sealed class SearchPopupService
         {
             WindowStartupLocation = WindowStartupLocation.CenterScreen
         };
+        // Semantic Anchor: SearchPopupThemeRegistration
+        // Invariant: the popup uses the current shared app theme before its first Show.
+        _themeService.RegisterSecondaryWindow(window);
         _windowPlacement.Attach(window, "SearchPopupWindow");
         var tcs = new TaskCompletionSource<TemplatePackage?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -1267,6 +1499,15 @@ public sealed class SettingsService
 
     private static void Migrate(AppSettings settings)
     {
+        // Semantic Anchor: LegacyMainFontDefaultMigration
+        // SSOT: MainWindowFontSize is stored only in AppSettings and is controlled by the existing settings slider.
+        // Invariant: on first migration from schema v1, the former 12-DIP starting value becomes 13 DIP;
+        // all other saved values stay unchanged, and a user-selected 12 DIP is allowed after migration.
+        if (settings.SettingsVersion < 2 && settings.MainWindowFontSize == 12)
+        {
+            settings.MainWindowFontSize = 13;
+        }
+
         if (settings.SettingsVersion < AppConstants.CurrentSettingsVersion)
         {
             settings.SettingsVersion = AppConstants.CurrentSettingsVersion;
@@ -1276,6 +1517,9 @@ public sealed class SettingsService
         settings.PopupCategoryFilter ??= new List<string>();
         settings.SearchPopupColumns ??= new List<SearchPopupColumnSettings>();
         settings.SearchPopupVisibleLines = Math.Clamp(settings.SearchPopupVisibleLines, 1, 10);
+        settings.SearchPopupFontSize = Math.Clamp(settings.SearchPopupFontSize, 10, 20);
+        // Semantic Anchor: MainWindowTypographyValidation | Invariant: both persisted and newly saved sizes stay within the supported range.
+        settings.MainWindowFontSize = Math.Clamp(settings.MainWindowFontSize, 10, 20);
         settings.PopupCategoryFilter = settings.PopupCategoryFilter
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())
@@ -1314,11 +1558,23 @@ public sealed class SettingsService
             settings.Language = "en";
         }
 
+        // Semantic Anchor: ThemeSettingsValidation
+        // SSOT: The same stable codes are used in AppThemeService, UI mappings and persistence.
+        // Invariants: legacy codes and every Glass variant survive save/load; unknown codes fall back to System.
         if (!string.Equals(settings.Theme, "System", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(settings.Theme, "Light", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(settings.Theme, "Dark", StringComparison.OrdinalIgnoreCase))
+            !string.Equals(settings.Theme, "Dark", StringComparison.OrdinalIgnoreCase) &&
+            !AppThemeService.IsGlassTheme(settings.Theme))
         {
             settings.Theme = "System";
+        }
+
+        // Invariant: transparency levels are independent of theme selection and only defined codes persist.
+        if (settings.GlassTransparency != "Subtle" &&
+            settings.GlassTransparency != "Standard" &&
+            settings.GlassTransparency != "Clear")
+        {
+            settings.GlassTransparency = "Standard";
         }
 
         settings.TemplatesPath = settings.TemplatesPath?.Trim() ?? string.Empty;

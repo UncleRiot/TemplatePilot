@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading;
@@ -42,7 +42,10 @@ public static class AppConstants
     }
 
     public const string TemplateExtension = ".tplpack";
-    public const int CurrentSettingsVersion = 1;
+    // Semantic Anchor: SettingsSchemaVersion
+    // SSOT: AppConstants.CurrentSettingsVersion is the authoritative schema version used by SettingsService.Migrate.
+    // Invariant: older persisted settings migrate once; subsequent user selections are retained.
+    public const int CurrentSettingsVersion = 2;
     public const int CurrentTemplateFormatVersion = 1;
 }
 

@@ -49,10 +49,14 @@ public partial class App : WpfApplication
             _services.GetRequiredService<CrashRecoveryService>().DeleteStaleRecoveryFiles();
 
             var mainWindow = _services.GetRequiredService<MainWindow>();
+            // Semantic Anchor: MainWindowBeforeThemeRegistration
+            // Invariant: assign Application.MainWindow before applying the theme;
+            // WPF-UI resolves that property when it configures the native window backdrop.
+            MainWindow = mainWindow;
             _services.GetRequiredService<AppThemeService>().RegisterMainWindow(
                 mainWindow,
-                settings.Current.Theme);
-            MainWindow = mainWindow;
+                settings.Current.Theme,
+                settings.Current.GlassTransparency);
 
             _services.GetRequiredService<TrayService>().Initialize(
                 mainWindow,

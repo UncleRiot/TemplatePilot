@@ -1,10 +1,10 @@
-<ui:FluentWindow x:Class="TemplatePilot.Views.SearchPopupWindow"
+﻿<ui:FluentWindow x:Class="TemplatePilot.Views.SearchPopupWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        Width="620"
+        Width="860"
         Height="360"
-        MinWidth="480"
+        MinWidth="520"
         MinHeight="260"
         WindowStyle="None"
         ExtendsContentIntoTitleBar="False"
@@ -12,16 +12,23 @@
         ShowInTaskbar="False"
         Topmost="True"
         AllowsTransparency="False"
-        Background="{DynamicResource ApplicationBackgroundBrush}"
+        Background="{DynamicResource TemplatePilotWindowSurfaceBrush}"
+        FontSize="12"
         Loaded="Window_Loaded"
         PreviewKeyDown="Window_PreviewKeyDown">
-  <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+  <Border Background="{DynamicResource TemplatePilotWindowSurfaceBrush}"
           BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
           BorderThickness="1"
           CornerRadius="{StaticResource CornerNormal}"
           Padding="8"
           MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <!-- Semantic Anchor: SearchPopupSplitLayout | SSOT: the window owns the list/preview panel geometry. Invariants: preview occupies a full-height dedicated right column, never a DataGrid column; hiding it releases its width without changing template selection. -->
     <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition x:Name="PreviewPanelColumn" Width="280" />
+      </Grid.ColumnDefinitions>
+      <Grid Grid.Column="0">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
@@ -31,7 +38,10 @@
       <DockPanel Grid.Row="0" Margin="0,0,0,8">
         <Image Source="/Ressources/templatepilot.png" Width="26" Height="26" Margin="0,0,8,0" DockPanel.Dock="Left" />
 
-        <Grid DockPanel.Dock="Right" Width="32" Margin="8,0,0,0">
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
+          <Button x:Name="PreviewPanelToggleButton" Content="‹" Width="28" Height="24" Margin="0,0,6,0"
+                  Padding="0" ToolTip="Toggle preview" Click="PreviewPanelToggleButton_Click" />
+        <Grid Width="32">
           <ToggleButton x:Name="CategoryFilterButton"
                         Width="28"
                         Height="24"
@@ -50,7 +60,7 @@
                  Placement="Bottom"
                  StaysOpen="False"
                  AllowsTransparency="False">
-            <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+            <Border Background="{DynamicResource TemplatePilotCardSurfaceBrush}"
                     BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                     BorderThickness="2"
                     CornerRadius="8"
@@ -80,6 +90,7 @@
             </Border>
           </Popup>
         </Grid>
+        </StackPanel>
 
         <TextBox x:Name="FilterTextBox"
                  Height="24"
@@ -90,7 +101,17 @@
                  ToolTip="{Binding HintText}" />
       </DockPanel>
 
+      <!-- Semantic Anchor: PopupTypography | SSOT: SearchPopupFontSize drives both text areas; row height is auto-derived from text; popup controls retain their existing typography. -->
+      <!-- Semantic Anchor: SinglePopupTemplateSelection | SSOT: SelectedTemplate identifies the one active search result. Invariants: no multi-selection with Shift/Ctrl; preview and insert track the selected row. -->
+      <!-- Semantic Anchor: SearchPopupGlassSurface
+           SSOT: AppThemeService supplies window/card material brushes to all popup panels.
+           Invariants: list selection, keyboard actions, typography and popup geometry are unchanged. -->
       <DataGrid x:Name="TemplateList"
+                Background="{DynamicResource TemplatePilotWindowSurfaceBrush}"
+                FontSize="{Binding SearchPopupFontSize}"
+                 RowHeight="NaN"
+                 SelectionMode="Single"
+                SelectionUnit="FullRow"
                 Grid.Row="1"
                 ItemsSource="{Binding TemplatesView}"
                 SelectedItem="{Binding SelectedTemplate, Mode=TwoWay}"
@@ -133,14 +154,18 @@
         </DataGrid.CellStyle>
         <DataGrid.RowStyle>
           <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-            <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
+            <!-- Semantic Anchor: SearchPopupRowGlassMaterial
+                 SSOT: AppThemeService supplies the same WindowSurfaceBrush as the popup itself.
+                 Invariants: unselected rows never create an opaque panel over Acrylic;
+                 alternating and selected row styles retain their existing priorities. -->
+            <Setter Property="Background" Value="{DynamicResource TemplatePilotWindowSurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Style.Triggers>
               <Trigger Property="AlternationIndex" Value="1">
-                <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="Background" Value="{DynamicResource TemplatePilotCardSurfaceBrush}" />
               </Trigger>
               <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
@@ -152,17 +177,17 @@
           </Style>
         </DataGrid.RowStyle>
         <DataGrid.Columns>
-          <DataGridTextColumn x:Name="KeyColumn" Binding="{Binding Metadata.Key}" Width="110" ElementStyle="{StaticResource TemplateListTextElementStyle}">
+          <DataGridTextColumn x:Name="KeyColumn" Binding="{Binding Metadata.Key}" Width="*" ElementStyle="{StaticResource TemplateListTextElementStyle}">
             <DataGridTextColumn.Header>
               <TextBlock Text="{Binding DataContext.KeyLabel, RelativeSource={RelativeSource AncestorType=Window}}" />
             </DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn x:Name="CategoryColumn" Binding="{Binding Metadata.Category}" Width="120" ElementStyle="{StaticResource TemplateListTextElementStyle}">
+          <DataGridTextColumn x:Name="CategoryColumn" Binding="{Binding Metadata.Category}" Width="110" ElementStyle="{StaticResource TemplateListTextElementStyle}">
             <DataGridTextColumn.Header>
               <TextBlock Text="{Binding DataContext.CategoryLabel, RelativeSource={RelativeSource AncestorType=Window}}" />
             </DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTemplateColumn x:Name="PreviewColumn" Width="*">
+          <DataGridTemplateColumn x:Name="PreviewColumn" Width="*" Visibility="Collapsed">
             <DataGridTemplateColumn.Header>
               <TextBlock Text="{Binding DataContext.PreviewLabel, RelativeSource={RelativeSource AncestorType=Window}}" />
             </DataGridTemplateColumn.Header>
@@ -195,6 +220,18 @@
                 DockPanel.Dock="Right"
                 Appearance="Primary" />
       </DockPanel>
+      </Grid>
+      <!-- Semantic Anchor: SearchPreviewPanel | Invariant: selection is bound to the same SelectedTemplate as the list; no duplicate selection state. -->
+      <Border x:Name="PreviewPanel" Grid.Column="1" Margin="8,0,0,0" Padding="10"
+              Background="{DynamicResource TemplatePilotCardSurfaceBrush}"
+              BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="{Binding PreviewLabel}" FontWeight="SemiBold" Margin="0,0,0,10" />
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <TextBlock Text="{Binding SelectedTemplate.Content.PlainText}" FontSize="{Binding SearchPopupFontSize}" TextWrapping="Wrap" />
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
     </Grid>
   </Border>
 </ui:FluentWindow>

@@ -1,18 +1,35 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using TemplatePilot.Infrastructure;
 
 namespace TemplatePilot.Models;
 
 public sealed class AppSettings
 {
-    public int SettingsVersion { get; set; } = 1;
+    // Semantic Anchor: NewSettingsSchemaDefault
+    // SSOT: new settings use the current schema from AppConstants; SettingsService.Migrate handles older files.
+    public int SettingsVersion { get; set; } = AppConstants.CurrentSettingsVersion;
     public string Language { get; set; } = "en";
     public string Theme { get; set; } = "System";
+    // Semantic Anchor: GlassTransparencyPreference
+    // SSOT: One persisted material-density code for all Glass variants; independent of theme name.
+    // Invariant: legacy settings default to Standard and retain their original theme choice.
+    public string GlassTransparency { get; set; } = "Standard";
     public string TemplatesPath { get; set; } = string.Empty;
     public HotkeySettings Shortcut { get; set; } = HotkeySettings.Default();
     public bool StartWithWindows { get; set; }
     public bool MinimizeToTray { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
+    // Semantic Anchor: MainViewState | SSOT: persisted view layout state belongs to AppSettings.
+    // Invariant: old settings remain compatible; defaults preserve the previous expanded/Templates view.
+    public bool IsNavigationPaneCollapsed { get; set; }
+    public int SelectedNavigationIndex { get; set; }
+    public int ActiveTabIndex { get; set; }
+    // Semantic Anchor: PopupTypographySettings | SSOT: One persisted size controls both popup list and preview.
+    // Invariants: legacy settings default to 13 DIP; supported range 10..20; no independent duplicate font settings.
+    public int SearchPopupFontSize { get; set; } = 13;
+    // Semantic Anchor: MainWindowTypographySettings | SSOT: one persisted font size for the main window; popup typography remains independent.
+    // Invariants: absent settings default to 13 DIP; saved user preferences remain unchanged; valid range is 10..20 DIP.
+    public int MainWindowFontSize { get; set; } = 13;
     public int SearchPopupVisibleLines { get; set; } = 3;
     public int ClipboardTimeoutMs { get; set; } = 1500;
     public int ClipboardRetryDelayMs { get; set; } = 40;
@@ -32,11 +49,17 @@ public sealed class AppSettings
             SettingsVersion = SettingsVersion,
             Language = Language,
             Theme = Theme,
+            GlassTransparency = GlassTransparency,
             TemplatesPath = TemplatesPath,
             Shortcut = Shortcut.Clone(),
             StartWithWindows = StartWithWindows,
             MinimizeToTray = MinimizeToTray,
             CloseToTray = CloseToTray,
+            IsNavigationPaneCollapsed = IsNavigationPaneCollapsed,
+            SelectedNavigationIndex = SelectedNavigationIndex,
+            ActiveTabIndex = ActiveTabIndex,
+            SearchPopupFontSize = SearchPopupFontSize,
+            MainWindowFontSize = MainWindowFontSize,
             SearchPopupVisibleLines = SearchPopupVisibleLines,
             ClipboardTimeoutMs = ClipboardTimeoutMs,
             ClipboardRetryDelayMs = ClipboardRetryDelayMs,

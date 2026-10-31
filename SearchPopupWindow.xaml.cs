@@ -12,6 +12,7 @@ namespace TemplatePilot.Views;
 public partial class SearchPopupWindow : Wpf.Ui.Controls.FluentWindow
 {
     private bool _restoringTemplateListColumns;
+    private bool _isPreviewPanelExpanded = true;
 
     public SearchPopupWindow(SearchPopupViewModel viewModel)
     {
@@ -24,6 +25,8 @@ public partial class SearchPopupWindow : Wpf.Ui.Controls.FluentWindow
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         RestoreTemplateListColumns();
+        // Semantic Anchor: SearchPreviewPanelToggle | SSOT: preview visibility is controlled only by this state, never by the persisted DataGrid preview column.
+        ApplyPreviewPanelState();
         TemplateList.AddHandler(
             Thumb.DragCompletedEvent,
             new DragCompletedEventHandler(TemplateList_ColumnWidthDragCompleted),
@@ -38,6 +41,23 @@ public partial class SearchPopupWindow : Wpf.Ui.Controls.FluentWindow
         FilterTextBox.SelectAll();
     }
 
+
+    /// <summary>
+    /// Semantic Anchor: SearchPreviewPanelState
+    /// Invariants: opening/closing only changes the right preview column and leaves the selected template and commands untouched.
+    /// </summary>
+    private void ApplyPreviewPanelState()
+    {
+        PreviewPanelColumn.Width = _isPreviewPanelExpanded ? new GridLength(280) : new GridLength(0);
+        PreviewPanel.Visibility = _isPreviewPanelExpanded ? Visibility.Visible : Visibility.Collapsed;
+        PreviewPanelToggleButton.Content = _isPreviewPanelExpanded ? "›" : "‹";
+    }
+
+    private void PreviewPanelToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isPreviewPanelExpanded = !_isPreviewPanelExpanded;
+        ApplyPreviewPanelState();
+    }
 
     private void HideLeftColumnHeaderGrippers()
     {

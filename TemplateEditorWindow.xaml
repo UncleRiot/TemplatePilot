@@ -10,11 +10,13 @@
         MinWidth="760"
         MinHeight="520"
         WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource TemplatePilotWindowSurfaceBrush}"
         ExtendsContentIntoTitleBar="False"
         AllowDrop="True"
         DragOver="Window_DragOver"
         Drop="Window_Drop"
         Closed="Window_Closed">
+  <!-- Semantic Anchor: EditorGlassSurface | SSOT: AppThemeService supplies the window brush; CardStyle supplies the shared card brush. -->
   <Grid Margin="12">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />

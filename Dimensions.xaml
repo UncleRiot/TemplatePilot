@@ -1,8 +1,8 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <sys:Double x:Key="FontSizeSmall" xmlns:sys="clr-namespace:System;assembly=System.Runtime">12</sys:Double>
-  <sys:Double x:Key="FontSizeNormal" xmlns:sys="clr-namespace:System;assembly=System.Runtime">14</sys:Double>
-  <sys:Double x:Key="FontSizeLarge" xmlns:sys="clr-namespace:System;assembly=System.Runtime">18</sys:Double>
+  <sys:Double x:Key="FontSizeSmall" xmlns:sys="clr-namespace:System;assembly=System.Runtime">10</sys:Double>
+  <sys:Double x:Key="FontSizeNormal" xmlns:sys="clr-namespace:System;assembly=System.Runtime">12</sys:Double>
+  <sys:Double x:Key="FontSizeLarge" xmlns:sys="clr-namespace:System;assembly=System.Runtime">16</sys:Double>
   <Thickness x:Key="SpacingTiny">4</Thickness>
   <Thickness x:Key="SpacingSmall">8</Thickness>
   <Thickness x:Key="SpacingNormal">12</Thickness>

@@ -168,6 +168,7 @@ public sealed class TemplateEditorDialogService
     private readonly CategoryCatalogService _categories;
     private readonly WindowPlacementService _windowPlacement;
     private readonly CategoryDialogService _categoryDialog;
+    private readonly AppThemeService _themeService;
 
     public TemplateEditorDialogService(
         TemplateEditorService editorService,
@@ -178,8 +179,10 @@ public sealed class TemplateEditorDialogService
         LoggingService logging,
         CategoryCatalogService categories,
         WindowPlacementService windowPlacement,
-        CategoryDialogService categoryDialog)
+        CategoryDialogService categoryDialog,
+        AppThemeService themeService)
     {
+        _themeService = themeService;
         _editorService = editorService;
         _localization = localization;
         _crashRecovery = crashRecovery;
@@ -252,6 +255,9 @@ public sealed class TemplateEditorDialogService
     {
         var viewModel = await CreateViewModelAsync(package, cancellationToken).ConfigureAwait(true);
         var window = new TemplateEditorWindow(viewModel);
+        // Semantic Anchor: TemplateEditorWindowThemeRegistration
+        // Invariant: modal editor uses the same Glass palette and native backdrop policy.
+        _themeService.RegisterSecondaryWindow(window);
         _windowPlacement.Attach(window, "TemplateEditorWindow");
         var result = window.ShowDialog() == true;
         viewModel.Dispose();
