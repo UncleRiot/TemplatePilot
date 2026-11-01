@@ -5,7 +5,6 @@ using TemplatePilot.Services;
 using TemplatePilot.ViewModels;
 using TemplatePilot.Views;
 using WpfApplication = System.Windows.Application;
-using WpfMessageBox = System.Windows.MessageBox;
 using System.Windows;
 
 namespace TemplatePilot;
@@ -15,6 +14,7 @@ public partial class App : WpfApplication
     private ServiceProvider? _services;
     private SingleInstanceCoordinator? _singleInstance;
     private CancellationTokenSource? _shutdownCts;
+    private bool _showingUnhandledErrorDialog;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -88,8 +88,19 @@ public partial class App : WpfApplication
         catch (Exception exception)
         {
             logging.Error("Application startup failed.", exception);
-            WpfMessageBox.Show(exception.Message, "TemplatePilot", MessageBoxButton.OK, MessageBoxImage.Error);
-            Shutdown();
+            try
+            {
+                ThemedDialogWindow.ShowMessage(ThemedDialogWindow.FindOwner(), AppConstants.AppName,
+                    exception.Message, null, "OK", symbol: "!");
+            }
+            catch (Exception dialogException)
+            {
+                logging.Error("Startup error dialog failed.", dialogException);
+            }
+            finally
+            {
+                Shutdown();
+            }
         }
     }
 
@@ -194,7 +205,28 @@ public partial class App : WpfApplication
         {
             logging.Error("Unhandled UI exception.", args.Exception);
             args.Handled = true;
-            WpfMessageBox.Show(args.Exception.Message, "TemplatePilot", MessageBoxButton.OK, MessageBoxImage.Error);
+            // Semantic Anchor: UnhandledDialogRecursionGuard
+            // Invariant: a failure inside a themed error dialog is logged, not shown
+            // through another dialog (which would recursively fail on the UI thread).
+            if (_showingUnhandledErrorDialog)
+            {
+                return;
+            }
+
+            try
+            {
+                _showingUnhandledErrorDialog = true;
+                ThemedDialogWindow.ShowMessage(ThemedDialogWindow.FindOwner(), AppConstants.AppName,
+                    args.Exception.Message, null, "OK", symbol: "!");
+            }
+            catch (Exception dialogException)
+            {
+                logging.Error("Unhandled error dialog failed.", dialogException);
+            }
+            finally
+            {
+                _showingUnhandledErrorDialog = false;
+            }
         };
 
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>

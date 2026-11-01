@@ -53,6 +53,7 @@ public partial class MainWindow : FluentWindow
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         viewModel.UpdateDialogRequested += OnUpdateDialogRequested;
         viewModel.DeleteConfirmationRequested += OnDeleteConfirmationRequested;
+        viewModel.DeleteErrorRequested += OnDeleteErrorRequested;
         UpdateTemplatesGridHeaders();
     }
 
@@ -348,6 +349,7 @@ public partial class MainWindow : FluentWindow
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
             viewModel.UpdateDialogRequested -= OnUpdateDialogRequested;
             viewModel.DeleteConfirmationRequested -= OnDeleteConfirmationRequested;
+            viewModel.DeleteErrorRequested -= OnDeleteErrorRequested;
             viewModel.Dispose();
         }
 
@@ -415,9 +417,10 @@ public partial class MainWindow : FluentWindow
 
     /// <summary>
     /// Semantic Anchor: MovableActionDialogs
-    /// SSOT: These two action paths use the same native, owner-bound FluentWindow dialog.
-    /// Invariants: the title bar remains draggable, confirmation defaults to non-destructive,
-    /// only an affirmative button returns true, and the dialog follows the current app theme.
+    /// SSOT: all main-window action messages use ShowMovableActionDialog and the
+    /// existing theme palette, including deletion confirmations and deletion errors.
+    /// Invariants: Escape/cancel never confirm, title remains draggable, one modal
+    /// owner-bound window is created per request, and no native MessageBox is used here.
     /// </summary>
     private Task<bool> OnDeleteConfirmationRequested(DeleteConfirmationRequest request)
     {
@@ -427,6 +430,11 @@ public partial class MainWindow : FluentWindow
             request.PrimaryButtonText,
             request.CloseButtonText);
         return Task.FromResult(accepted);
+    }
+
+    private void OnDeleteErrorRequested(string message)
+    {
+        ShowMovableActionDialog(ViewModel.AppTitle, message, null, ViewModel.OkText);
     }
 
     private void OnUpdateDialogRequested(string message, bool showOpenReleaseButton)
@@ -445,9 +453,9 @@ public partial class MainWindow : FluentWindow
 
     /// <summary>
     /// Semantic Anchor: MovableActionDialogWindow
-    /// SSOT: Action dialogs use the same WPF-UI FluentWindow chrome and explicit TitleBar as MainWindow.
-    /// Invariants: the title bar remains reachable and draggable; content never overlaps chrome;
-    /// dismissing the dialog cannot confirm an action; only the explicit primary button returns true.
+    /// SSOT: the shared ThemedDialogWindow draws every application-owned modal action.
+    /// Invariants: preserve owner modality, caption drag, explicit confirmation,
+    /// localized button labels, and the existing destructive-action styling.
     /// </summary>
     private bool ShowMovableActionDialog(
         string title,
@@ -455,91 +463,25 @@ public partial class MainWindow : FluentWindow
         string? confirmText,
         string closeText)
     {
-        var dialog = new FluentWindow
-        {
-            Title = title,
-            Owner = this,
-            Width = 460,
-            Height = 210,
-            MinWidth = 360,
-            MinHeight = 210,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize,
-            ShowInTaskbar = false,
-            ExtendsContentIntoTitleBar = true
-        };
-        // Semantic Anchor: MovableDialogThemeRegistration
-        // Invariant: action dialogs stay movable and follow the same theme as their owner.
-        _themeService.RegisterSecondaryWindow(dialog);
-
-        var layout = new System.Windows.Controls.Grid();
-        layout.RowDefinitions.Add(new System.Windows.Controls.RowDefinition
-        {
-            Height = System.Windows.GridLength.Auto
-        });
-        layout.RowDefinitions.Add(new System.Windows.Controls.RowDefinition
-        {
-            Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star)
-        });
-
-        var titleBar = new Wpf.Ui.Controls.TitleBar { Title = title };
-        System.Windows.Controls.Grid.SetRow(titleBar, 0);
-        layout.Children.Add(titleBar);
-
-        var body = new System.Windows.Controls.Grid { Margin = new Thickness(20, 14, 20, 18) };
-        body.RowDefinitions.Add(new System.Windows.Controls.RowDefinition
-        {
-            Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star)
-        });
-        body.RowDefinitions.Add(new System.Windows.Controls.RowDefinition
-        {
-            Height = System.Windows.GridLength.Auto
-        });
-        body.Children.Add(new System.Windows.Controls.TextBlock
-        {
-            Text = message,
-            TextWrapping = TextWrapping.Wrap,
-            VerticalAlignment = VerticalAlignment.Top
-        });
-
-        var buttons = new System.Windows.Controls.StackPanel
-        {
-            Orientation = System.Windows.Controls.Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right
-        };
-
-        if (!string.IsNullOrWhiteSpace(confirmText))
-        {
-            var confirm = new Wpf.Ui.Controls.Button
-            {
-                Content = confirmText,
-                Appearance = Wpf.Ui.Controls.ControlAppearance.Danger,
-                Margin = new Thickness(0, 0, 12, 0),
-                MinWidth = 84
-            };
-            confirm.Click += (_, _) => dialog.DialogResult = true;
-            buttons.Children.Add(confirm);
-        }
-
-        var cancel = new Wpf.Ui.Controls.Button { Content = closeText, MinWidth = 84 };
-        cancel.Click += (_, _) => dialog.DialogResult = false;
-        buttons.Children.Add(cancel);
-        System.Windows.Controls.Grid.SetRow(buttons, 1);
-        body.Children.Add(buttons);
-        System.Windows.Controls.Grid.SetRow(body, 1);
-        layout.Children.Add(body);
-        dialog.Content = layout;
-        return dialog.ShowDialog() == true;
+        return ThemedDialogWindow.ShowMessage(this, title, message, confirmText,
+            closeText, isDestructive: !string.IsNullOrWhiteSpace(confirmText));
     }
 
     /// <summary>
-    /// Semantic Anchor: TemplateContextMenuTargetSelection
-    /// SSOT: TemplatesGrid.ContextMenu supplies the existing template actions; SelectedTemplate
-    /// remains their sole target through the existing DataGrid selection binding.
-    /// Invariants: a right-click on a data row selects exactly that row and opens the template
-    /// menu, never an inherited text-editing menu. Commands, inline-edit restrictions and
-    /// keyboard/left-click behavior are unchanged.
+    /// Semantic Anchor: TemplateSelectionContextAction
+    /// SSOT: DataGrid.SelectedItems owns the deletion selection; its existing ContextMenu
+    /// invokes the same commands as the toolbar, without a separate selection source.
+    /// Invariants: right-click on a selected row preserves a multi-selection; right-click
+    /// elsewhere targets only that row; keyboard and normal extended selection remain native.
     /// </summary>
+    private void TemplatesGrid_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.SetSelectedTemplates(TemplatesGrid.SelectedItems.OfType<TemplatePilot.Models.TemplatePackage>());
+        }
+    }
+
     private void TemplatesGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is not DependencyObject source
@@ -549,7 +491,11 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        row.IsSelected = true;
+        if (!row.IsSelected)
+        {
+            TemplatesGrid.SelectedItems.Clear();
+            row.IsSelected = true;
+        }
 
         // The cell's own text context menu can otherwise take precedence over the grid menu.
         // Handle the preview event before child controls receive the click and open the

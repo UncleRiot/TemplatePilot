@@ -1034,6 +1034,8 @@ public sealed class LocalizationService
             ["Shortcut"] = "Shortcut",
             ["Save"] = "Save",
             ["Cancel"] = "Cancel",
+            ["Yes"] = "Yes",
+            ["No"] = "No",
             ["CaptureClipboard"] = "Capture clipboard",
             ["PlainText"] = "Plain text",
             ["RichText"] = "Rich text",
@@ -1062,6 +1064,7 @@ public sealed class LocalizationService
             ["Insert"] = "Insert",
             ["ConfirmDelete"] = "Delete selected template?",
             ["ConfirmDeleteTemplateNamed"] = "Delete template \"{0}\"?",
+            ["ConfirmDeleteTemplatesCount"] = "Delete {0} selected templates?",
             ["Error"] = "Error",
             ["HotkeyConflict"] = "The configured shortcut is already used by another application.",
             ["TemplateKeyRequired"] = "Shortcut is required.",
@@ -1201,6 +1204,13 @@ public sealed class LoggingService
     }
 }
 
+/// <summary>
+/// Semantic Anchor: ApplicationMessageRoutingSSOT
+/// SSOT: Every application-owned information, error and confirmation message goes
+/// through ThemedDialogWindow; native Windows file/folder pickers remain OS-owned.
+/// Invariants: messages retain their text and localization, and a confirmation
+/// only succeeds on an explicit affirmative action.
+/// </summary>
 public sealed class MessageBoxService
 {
     private readonly LocalizationService _localization;
@@ -1212,21 +1222,30 @@ public sealed class MessageBoxService
 
     public bool Confirm(string message)
     {
-        return MessageBox.Show(message, AppConstants.AppName, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+        return ThemedDialogWindow.ShowMessage(ThemedDialogWindow.FindOwner(),
+            AppConstants.AppName, message, _localization["Yes"], _localization["No"], symbol: "?");
     }
 
     public void Error(string message)
     {
-        MessageBox.Show(message, _localization["Error"], MessageBoxButton.OK, MessageBoxImage.Error);
+        ThemedDialogWindow.ShowMessage(ThemedDialogWindow.FindOwner(),
+            _localization["Error"], message, null, _localization["OK"], symbol: "!");
     }
 
     public void Info(string message)
     {
-        MessageBox.Show(message, AppConstants.AppName, MessageBoxButton.OK, MessageBoxImage.Information);
+        ThemedDialogWindow.ShowMessage(ThemedDialogWindow.FindOwner(),
+            AppConstants.AppName, message, null, _localization["OK"], symbol: "i");
     }
 }
 
-
+/// <summary>
+/// Semantic Anchor: CategoryDialogThemeAndInputContract
+/// SSOT: ThemedDialogWindow owns the modal chrome and palette for category input;
+/// LocalizationService supplies its existing labels and validation remains local.
+/// Invariants: no empty category is accepted, Escape cancels, existing text is
+/// selected on opening, and the active window remains the modal owner.
+/// </summary>
 public sealed class CategoryDialogService
 {
     private readonly LocalizationService _localization;
@@ -1240,38 +1259,36 @@ public sealed class CategoryDialogService
 
     public string? ShowCategoryDialog(string title, string initialValue)
     {
-        var owner = Application.Current.Windows
-            .OfType<Window>()
-            .FirstOrDefault(window => window.IsActive);
-
+        // AppThemeService owns the shared resources used by ThemedDialogWindow.
+        // Keep its injected dependency to preserve the existing service contract.
+        var owner = ThemedDialogWindow.FindOwner();
+        var window = new ThemedDialogWindow(title, owner, width: 390, height: 215);
         var input = new TextBox
         {
             Text = initialValue,
             MinWidth = 220,
-            Height = 24,
+            Height = 28,
             MinHeight = 22,
             Padding = new Thickness(6, 2, 6, 2),
             VerticalContentAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 12)
         };
 
-        var okButton = new Button
+        var okButton = new Wpf.Ui.Controls.Button
         {
             Content = _localization["Save"],
-            Width = 90,
-            Height = 28,
+            MinWidth = 90,
+            Height = 30,
             IsDefault = true
         };
-
-        var cancelButton = new Button
+        var cancelButton = new Wpf.Ui.Controls.Button
         {
             Content = _localization["Cancel"],
-            Width = 90,
-            Height = 28,
+            MinWidth = 90,
+            Height = 30,
             IsCancel = true,
             Margin = new Thickness(8, 0, 0, 0)
         };
-
         var buttons = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -1280,32 +1297,16 @@ public sealed class CategoryDialogService
         buttons.Children.Add(okButton);
         buttons.Children.Add(cancelButton);
 
-        var content = new StackPanel
-        {
-            Margin = new Thickness(14)
-        };
+        var content = new StackPanel();
         content.Children.Add(new TextBlock
         {
             Text = _localization["Category"],
+            Foreground = window.DialogTextBrush,
             Margin = new Thickness(0, 0, 0, 6)
         });
         content.Children.Add(input);
         content.Children.Add(buttons);
-
-        var window = new Wpf.Ui.Controls.FluentWindow
-        {
-            Title = title,
-            Content = content,
-            Owner = owner,
-            SizeToContent = SizeToContent.WidthAndHeight,
-            WindowStartupLocation = owner is null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize,
-            ShowInTaskbar = false
-        };
-
-        // Semantic Anchor: CategoryDialogThemeRegistration
-        // Invariant: the category input dialog shares the selected theme without altering validation.
-        _themeService.RegisterSecondaryWindow(window);
+        window.Body.Children.Add(content);
 
         okButton.Click += (_, _) =>
         {
@@ -1318,25 +1319,17 @@ public sealed class CategoryDialogService
 
             window.DialogResult = true;
         };
-
+        cancelButton.Click += (_, _) => window.DialogResult = false;
         window.Loaded += (_, _) =>
         {
             input.Focus();
             input.SelectAll();
         };
 
-        window.PreviewKeyDown += (_, args) =>
-        {
-            if (args.Key == Key.Escape)
-            {
-                window.DialogResult = false;
-                args.Handled = true;
-            }
-        };
-
         return window.ShowDialog() == true ? input.Text.Trim() : null;
     }
 }
+
 
 public sealed partial class PlaceholderService
 {

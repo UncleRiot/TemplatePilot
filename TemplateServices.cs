@@ -337,6 +337,33 @@ public sealed class TemplateEditorService
         _cache.Invalidate();
     }
 
+    /// <summary>
+    /// Semantic Anchor: BatchTemplateDeletionCacheContract
+    /// SSOT: TemplateStorageService deletes files; this service invalidates the cache once.
+    /// Invariants: validate cancellation between items; partial deletion still invalidates
+    /// the cache; never report partial completion as an all-or-nothing transaction.
+    /// </summary>
+    public async Task DeleteManyAsync(IReadOnlyCollection<TemplatePackage> packages, CancellationToken cancellationToken)
+    {
+        bool anyDeleted = false;
+        try
+        {
+            foreach (TemplatePackage package in packages)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await _storage.DeleteAsync(package, cancellationToken).ConfigureAwait(false);
+                anyDeleted = true;
+            }
+        }
+        finally
+        {
+            if (anyDeleted)
+            {
+                _cache.Invalidate();
+            }
+        }
+    }
+
     public async Task<TemplatePackage> DuplicateAsync(TemplatePackage package, CancellationToken cancellationToken)
     {
         var duplicate = await _storage.DuplicateAsync(package, cancellationToken).ConfigureAwait(false);

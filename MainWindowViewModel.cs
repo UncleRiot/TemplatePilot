@@ -12,6 +12,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 {
     public event Action<string, bool>? UpdateDialogRequested;
     public event Func<DeleteConfirmationRequest, Task<bool>>? DeleteConfirmationRequested;
+    public event Action<string>? DeleteErrorRequested;
 
     private readonly TemplateCacheService _cache;
     private readonly TemplateEditorService _editorService;
@@ -37,6 +38,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private string? _selectedCategoryFilter;
     private string _categoryEditText = string.Empty;
     private TemplatePackage? _selectedTemplate;
+    private TemplatePackage[] _selectedTemplates = Array.Empty<TemplatePackage>();
     private string _selectedLanguage;
     private string _selectedTheme;
     private string _selectedGlassTransparencyCode;
@@ -125,9 +127,9 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
         InitializeCommand = new AsyncRelayCommand(InitializeAsync);
         NewTemplateCommand = new AsyncRelayCommand(NewTemplateAsync, () => !IsEditorOpen);
-        EditTemplateCommand = new AsyncRelayCommand(EditTemplateAsync, () => SelectedTemplate is not null && !IsEditorOpen);
-        DeleteTemplateCommand = new AsyncRelayCommand(DeleteTemplateAsync, () => SelectedTemplate is not null);
-        DuplicateTemplateCommand = new AsyncRelayCommand(DuplicateTemplateAsync, () => SelectedTemplate is not null);
+        EditTemplateCommand = new AsyncRelayCommand(EditTemplateAsync, () => SelectedTemplate is not null && _selectedTemplates.Length == 1 && !IsEditorOpen);
+        DeleteTemplateCommand = new AsyncRelayCommand(DeleteTemplateAsync, () => _selectedTemplates.Length > 0);
+        DuplicateTemplateCommand = new AsyncRelayCommand(DuplicateTemplateAsync, () => SelectedTemplate is not null && _selectedTemplates.Length == 1);
         ImportCommand = new AsyncRelayCommand(ImportAsync);
         ExportCommand = new AsyncRelayCommand(ExportAsync);
         SaveSettingsCommand = new AsyncRelayCommand(SaveSettingsAsync);
@@ -366,6 +368,21 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
                 RaiseActiveCommandStates();
             }
         }
+    }
+
+    /// <summary>
+    /// Semantic Anchor: TemplateSelectionSnapshot
+    /// SSOT: the main DataGrid owns selection; this VM snapshot is used only for commands.
+    /// Invariants: one row enables edit/duplicate, any selected rows enable delete;
+    /// collection refreshes cannot change the targets of an already confirmed deletion.
+    /// </summary>
+    public void SetSelectedTemplates(IEnumerable<TemplatePackage> selectedTemplates)
+    {
+        _selectedTemplates = selectedTemplates.ToArray();
+        EditTemplateCommand.RaiseCanExecuteChanged();
+        DuplicateTemplateCommand.RaiseCanExecuteChanged();
+        DeleteTemplateCommand.RaiseCanExecuteChanged();
+        RaiseActiveCommandStates();
     }
 
     public string SelectedLanguage
@@ -723,21 +740,21 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private bool CanActiveEdit()
     {
         return ActiveTabIndex == 0
-            ? SelectedTemplate is not null
+            ? SelectedTemplate is not null && _selectedTemplates.Length == 1
             : !string.IsNullOrWhiteSpace(SelectedCategory);
     }
 
     private bool CanActiveSave()
     {
         return ActiveTabIndex == 0
-            ? SelectedTemplate is not null
+            ? SelectedTemplate is not null && _selectedTemplates.Length == 1
             : !string.IsNullOrWhiteSpace(SelectedCategory);
     }
 
     private bool CanActiveDelete()
     {
         return ActiveTabIndex == 0
-            ? SelectedTemplate is not null
+            ? _selectedTemplates.Length > 0
             : !string.IsNullOrWhiteSpace(SelectedCategory);
     }
 
@@ -959,30 +976,61 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Semantic Anchor: TemplateDeletionConfirmation
-    /// SSOT: This method owns destructive template deletion confirmation for the main window workflow.
-    /// Invariants: the confirmation must include the concrete template display name and deletion must only proceed after an explicit affirmative result.
+    /// SSOT: SetSelectedTemplates captures the DataGrid selection, and this is the sole
+    /// destructive template deletion command for both the toolbar and context menu.
+    /// Invariants: confirmation names a single target or counts multiple targets;
+    /// cancellation deletes none; a stable snapshot is used throughout the operation;
+    /// cache invalidation is batched for multi-delete; failures are reported via the
+    /// same themed action dialog as the confirmation.
     /// </summary>
     private async Task DeleteTemplateAsync(CancellationToken cancellationToken)
     {
-        if (SelectedTemplate is null)
+        TemplatePackage[] templatesToDelete = _selectedTemplates.ToArray();
+        if (templatesToDelete.Length == 0)
         {
             return;
         }
 
-        TemplatePackage templateToDelete = SelectedTemplate;
-        string templateDisplayName = templateToDelete.DisplayName;
-        string confirmationMessage = string.Format(
-            _localization["ConfirmDeleteTemplateNamed"],
-            templateDisplayName);
+        string confirmationMessage = templatesToDelete.Length == 1
+            ? string.Format(_localization["ConfirmDeleteTemplateNamed"], templatesToDelete[0].DisplayName)
+            : string.Format(_localization["ConfirmDeleteTemplatesCount"], templatesToDelete.Length);
 
         if (!await ConfirmDeleteAsync(confirmationMessage).ConfigureAwait(true))
         {
             return;
         }
 
-        await _editorService.DeleteAsync(templateToDelete, cancellationToken).ConfigureAwait(true);
-        SelectedTemplate = null;
-        await RefreshTemplatesAsync(cancellationToken).ConfigureAwait(true);
+        try
+        {
+            if (templatesToDelete.Length == 1)
+            {
+                await _editorService.DeleteAsync(templatesToDelete[0], cancellationToken).ConfigureAwait(true);
+            }
+            else
+            {
+                await _editorService.DeleteManyAsync(templatesToDelete, cancellationToken).ConfigureAwait(true);
+            }
+        }
+        catch (Exception exception)
+        {
+            _logging.Error("Template deletion failed.", exception);
+            if (DeleteErrorRequested is { } errorHandler)
+            {
+                errorHandler(exception.Message);
+            }
+            else
+            {
+                _messages.Error(exception.Message);
+            }
+        }
+        finally
+        {
+            // Reconcile the collection even if only part of a batch was deleted.
+            // Never retain SelectedTemplate references to deleted file-backed items.
+            SelectedTemplate = null;
+            SetSelectedTemplates(Array.Empty<TemplatePackage>());
+            await RefreshTemplatesAsync(CancellationToken.None).ConfigureAwait(true);
+        }
     }
 
     private async Task DuplicateTemplateAsync(CancellationToken cancellationToken)

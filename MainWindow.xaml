@@ -204,10 +204,11 @@
                     <ui:DataGrid Grid.Row="1"
                                  x:Name="TemplatesGrid"
                                  FontSize="{Binding MainWindowFontSize}"
-                                 SelectionMode="Single"
+                                 SelectionMode="Extended"
                                  SelectionUnit="FullRow"
                                  IsReadOnly="True"
                                  PreviewMouseRightButtonDown="TemplatesGrid_PreviewMouseRightButtonDown"
+                                 SelectionChanged="TemplatesGrid_SelectionChanged"
                                  HorizontalAlignment="Stretch"
                                  AutoGenerateColumns="False"
                                  CanUserSortColumns="True"
@@ -220,10 +221,12 @@
                                  ItemsSource="{Binding TemplatesView}"
                                  SelectedItem="{Binding SelectedTemplate, Mode=TwoWay}"
                                  MouseDoubleClick="TemplatesGrid_MouseDoubleClick">
-                      <!-- Semantic Anchor: SingleTemplateSelection | SSOT: SelectedTemplate is the sole active template.
-                         Invariants: only full-row single selection; no inline editing of shortcuts or categories;
-                         right-click selects the target row before existing context commands execute;
-                         Edit opens the existing editor; Delete invokes the existing confirmation. -->
+                      <!-- Semantic Anchor: TemplateMultiSelection
+                           SSOT: DataGrid.SelectedItems is the selection source for deletion; SelectedTemplate remains
+                           the active single-row target for edit/duplicate actions.
+                           Invariants: Ctrl+click, Shift+click and Ctrl+A select full rows; right-click preserves
+                           the selected group when its target is already selected; deletion uses one confirmation
+                           and a stable selection snapshot; no inline editing or category-selection changes. -->
                       <!-- Semantic Anchor: TemplateGridContextActions | SSOT: Context actions invoke the same ViewModel commands as toolbar buttons; no alternate handlers. -->
                       <ui:DataGrid.ContextMenu>
                         <ContextMenu FontSize="{Binding MainWindowFontSize}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
