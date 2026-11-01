@@ -13,6 +13,17 @@
       </ResourceDictionary.MergedDictionaries>
       <!-- Semantic Anchor: ThemeMaterialDefaults | Values are replaced only by AppThemeService on a theme change. -->
       <SolidColorBrush x:Key="TemplatePilotWindowSurfaceBrush" Color="#FF202020" />
+      <!-- Semantic Anchor: SearchPopupLayeredGlassSurface
+           SSOT: AppThemeService derives the popup-only tint from the selected Glass theme and transparency level.
+           Invariant: non-Glass themes retain the existing opaque window surface. -->
+      <SolidColorBrush x:Key="TemplatePilotPopupSurfaceBrush" Color="#FF202020" />
+      <!-- Semantic Anchor: FloatingMenuMaterial
+           SSOT: AppThemeService provides a separate, theme-matched, near-opaque surface
+           for floating menus. Ordinary Glass cards and popup transparency remain unchanged. -->
+      <SolidColorBrush x:Key="TemplatePilotFloatingMenuSurfaceBrush" Color="#FF202020" />
+      <!-- Semantic Anchor: SearchPopupSelectionContrastDefault
+           SSOT: AppThemeService updates this foreground against the selected row accent. -->
+      <SolidColorBrush x:Key="TemplatePilotPopupSelectionTextBrush" Color="White" />
       <SolidColorBrush x:Key="TemplatePilotCardSurfaceBrush" Color="#FF292929" />
       <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
       <helpers:ImageBytesToBitmapSourceConverter x:Key="ImageBytesToBitmapSourceConverter" />

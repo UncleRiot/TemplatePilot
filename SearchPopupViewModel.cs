@@ -13,6 +13,9 @@ public sealed class SearchPopupViewModel : ViewModelBase
     private bool _updatingCategoryFilters;
     private string _filterText;
     private TemplatePackage? _selectedTemplate;
+    private int? _previewFontSize;
+    private int? _previewVisibleLines;
+    private string? _previewPosition;
 
     public SearchPopupViewModel(LocalizationService localization, SettingsService settings, string initialQuery)
     {
@@ -46,9 +49,55 @@ public sealed class SearchPopupViewModel : ViewModelBase
     public string NameLabel => _localization["Name"];
     public string CategoryLabel => _localization["Category"];
     public string PreviewLabel => _localization["Preview"];
-    // Semantic Anchor: PopupTypographyRuntime | SSOT: consume persisted AppSettings size in every popup.
-    public int SearchPopupFontSize => Math.Clamp(_settings.Current.SearchPopupFontSize, 10, 20);
-    public int SearchPopupVisibleLines => Math.Clamp(_settings.Current.SearchPopupVisibleLines, 1, 10);
+    // Semantic Anchor: SearchPopupPreviewLayoutAccess
+    // SSOT: the persisted AppSettings position and ratios are shared by normal popups
+    // and the real, non-persisting settings preview. Only user-initiated splitter drags persist.
+    public bool IsSearchPopupPreviewBelow => string.Equals(
+        _previewPosition ?? _settings.Current.SearchPopupPreviewPosition, "Below", StringComparison.Ordinal);
+
+    public double GetSearchPopupPreviewRatio(bool below)
+    {
+        return below ? _settings.Current.SearchPopupPreviewBottomRatio : _settings.Current.SearchPopupPreviewRightRatio;
+    }
+
+    public Task SaveSearchPopupPreviewRatioAsync(bool below, double ratio)
+    {
+        if (!double.IsFinite(ratio))
+        {
+            return Task.CompletedTask;
+        }
+
+        return _settings.UpdateAsync(settings =>
+        {
+            if (below)
+            {
+                settings.SearchPopupPreviewBottomRatio = ratio;
+            }
+            else
+            {
+                settings.SearchPopupPreviewRightRatio = ratio;
+            }
+        }, CancellationToken.None);
+    }
+    // Semantic Anchor: SearchPopupSettingsTransientPreview
+    // SSOT: normal popups read AppSettings unless this instance receives in-memory
+    // pending visual values; the settings preview always receives those pending values.
+    // These overrides never update SettingsService or template data.
+    public void ApplySettingsPreview(int visibleLines, int fontSize, string position)
+    {
+        _previewVisibleLines = Math.Clamp(visibleLines, 1, 10);
+        _previewFontSize = Math.Clamp(fontSize, 10, 20);
+        _previewPosition = string.Equals(position, "Below", StringComparison.OrdinalIgnoreCase)
+            ? "Below" : "Right";
+        OnPropertyChanged(nameof(SearchPopupVisibleLines));
+        OnPropertyChanged(nameof(SearchPopupFontSize));
+        OnPropertyChanged(nameof(SearchPopupTextMaxHeight));
+    }
+
+    // Semantic Anchor: PopupTypographyRuntime | SSOT: AppSettings is persisted;
+    // in-memory visual overrides apply immediately to both popup presentation modes.
+    public int SearchPopupFontSize => _previewFontSize ?? Math.Clamp(_settings.Current.SearchPopupFontSize, 10, 20);
+    public int SearchPopupVisibleLines => _previewVisibleLines ?? Math.Clamp(_settings.Current.SearchPopupVisibleLines, 1, 10);
     public double SearchPopupTextMaxHeight => SearchPopupVisibleLines * (SearchPopupFontSize + 5d);
     public string CategoryFilterLabel => _localization["CategoryFilter"];
     public string AllCategoriesText => _localization["AllCategories"];

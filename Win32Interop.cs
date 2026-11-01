@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 
 namespace TemplatePilot.Interop;
@@ -184,6 +184,20 @@ public struct Win32HardwareInput
 
 public static class User32WindowInterop
 {
+    // Semantic Anchor: ShortcutBackdropCaptureAffinity
+    // SSOT: these native values and APIs belong to the shared Win32 window interop layer.
+    // WDA_EXCLUDEFROMCAPTURE requires Windows 10 2004+ and an app-owned top-level HWND.
+    public const uint WdaNone = 0;
+    public const uint WdaExcludeFromCapture = 0x00000011;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetWindowDisplayAffinity(IntPtr hwnd, out uint affinity);
+
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
 

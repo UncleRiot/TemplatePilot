@@ -2,6 +2,8 @@
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+		<!-- Semantic Anchor: GeneratedComInteropCompilation | SSOT: enable unsafe code only as required for source-generated COM interop. -->
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 		<Nullable>enable</Nullable>
@@ -16,10 +18,10 @@
 		<PlatformTarget>AnyCPU</PlatformTarget>
 		<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
 
-		<Version>0.5.1</Version>
-		<AssemblyVersion>0.5.1.0</AssemblyVersion>
-		<FileVersion>0.5.1.0</FileVersion>
-		<InformationalVersion>0.5.1</InformationalVersion>
+		<Version>0.9.1</Version>
+		<AssemblyVersion>0.9.1.0</AssemblyVersion>
+		<FileVersion>0.9.1.0</FileVersion>
+		<InformationalVersion>0.9.1</InformationalVersion>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 	</PropertyGroup>
 

@@ -19,6 +19,7 @@
         Loaded="Window_Loaded"
         Closing="Window_Closing"
         Closed="Window_Closed"
+        IsVisibleChanged="Window_IsVisibleChanged"
         StateChanged="Window_StateChanged"
         PreviewKeyDown="Window_PreviewKeyDown">
   <!-- Semantic Anchor: MainWindowTypographyBinding
@@ -425,196 +426,274 @@
         </TabItem>
 
         <TabItem>
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="8" MaxWidth="760" HorizontalAlignment="Left">
-              <TextBlock Text="{Binding SettingsText}" Style="{StaticResource HeaderTextStyle}" FontSize="{Binding MainWindowHeaderFontSize}" />
-              <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SettingsDescriptionText}"
-                         Opacity="0.72"
-                         Margin="0,4,0,16" TextWrapping="Wrap" />
+          <!-- Semantic Anchor: SettingsStickySaveAndPopupTabs
+               Invariants: the only Settings Save command remains visible outside both scrolling
+               tabs; popup visual controls are separate and show one real non-interactive preview
+               as soon as their tab is active. Changing a value previews it without persistence. -->
+          <Grid Margin="8" MaxWidth="760" HorizontalAlignment="Left">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                <TextBlock Text="{Binding SettingsText}" Style="{StaticResource HeaderTextStyle}"
+                           FontSize="{Binding MainWindowHeaderFontSize}" />
+                <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SettingsDescriptionText}"
+                           Opacity="0.72" Margin="0,4,0,0" TextWrapping="Wrap" />
+              </StackPanel>
+              <ui:Button Grid.Column="1" VerticalAlignment="Top" FontSize="{Binding MainWindowFontSize}"
+                         Content="{Binding SaveText}" Command="{Binding SaveSettingsCommand}"
+                         Appearance="Primary" />
+            </Grid>
+            <TabControl x:Name="SettingsSectionTabs" Grid.Row="1" SelectedIndex="0"
+                        FontSize="{Binding MainWindowFontSize}"
+                        SelectionChanged="SettingsSectionTabs_SelectionChanged">
+              <TabItem Header="{Binding GeneralText}" Style="{StaticResource TemplateCategoryFluentTabStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                  <StackPanel Margin="0,12,8,0">
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="180" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                          <RowDefinition Height="Auto" />
+                          <RowDefinition Height="Auto" />
+                          <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding LanguageLabel}" VerticalAlignment="Center" />
+                        <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
+                                  ItemsSource="{Binding AvailableLanguages}"
+                                  SelectedItem="{Binding SelectedLanguage}"
+                                  MinWidth="220" />
+                        <TextBlock FontSize="{Binding MainWindowFontSize}" Grid.Row="1" Text="{Binding ThemeText}" VerticalAlignment="Center" Margin="0,12,0,0" />
+                        <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Row="1" Grid.Column="1"
+                                  ItemsSource="{Binding AvailableThemes}"
+                                  SelectedItem="{Binding SelectedTheme}"
+                                  MinWidth="220" Margin="0,12,0,0" />
+                        <!-- Semantic Anchor: GlassTransparencyControls | Single shared persisted level; settings
+                             are shown only for Glass themes and do not affect system/opaque themes. -->
+                        <TextBlock Grid.Row="2" FontSize="{Binding MainWindowFontSize}"
+                                   Text="{Binding GlassTransparencyText}" VerticalAlignment="Center" Margin="0,12,0,0"
+                                   Visibility="{Binding IsGlassThemeSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <ComboBox Grid.Row="2" Grid.Column="1" FontSize="{Binding MainWindowFontSize}"
+                                  MinWidth="220" Margin="0,12,0,0"
+                                  SelectedValuePath="Tag"
+                                  SelectedValue="{Binding SelectedGlassTransparencyCode, Mode=TwoWay}"
+                                  Visibility="{Binding IsGlassThemeSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                          <ComboBoxItem Tag="Subtle" Content="{Binding GlassTransparencySubtleText}" />
+                          <ComboBoxItem Tag="Standard" Content="{Binding GlassTransparencyStandardText}" />
+                          <ComboBoxItem Tag="Clear" Content="{Binding GlassTransparencyClearText}" />
+                        </ComboBox>
+                      </Grid>
+                    </Border>
 
-              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180" />
-                    <ColumnDefinition Width="*" />
-                  </Grid.ColumnDefinitions>
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                  </Grid.RowDefinitions>
-                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding LanguageLabel}" VerticalAlignment="Center" />
-                  <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
-                            ItemsSource="{Binding AvailableLanguages}"
-                            SelectedItem="{Binding SelectedLanguage}"
-                            MinWidth="220" />
-                  <TextBlock FontSize="{Binding MainWindowFontSize}" Grid.Row="1" Text="{Binding ThemeText}" VerticalAlignment="Center" Margin="0,12,0,0" />
-                  <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Row="1" Grid.Column="1"
-                            ItemsSource="{Binding AvailableThemes}"
-                            SelectedItem="{Binding SelectedTheme}"
-                            MinWidth="220" Margin="0,12,0,0" />
-                  <!-- Semantic Anchor: GlassTransparencyControls | Single shared persisted level; settings
-                       are shown only for Glass themes and do not affect system/opaque themes. -->
-                  <TextBlock Grid.Row="2" FontSize="{Binding MainWindowFontSize}"
-                             Text="{Binding GlassTransparencyText}" VerticalAlignment="Center" Margin="0,12,0,0"
-                             Visibility="{Binding IsGlassThemeSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                  <ComboBox Grid.Row="2" Grid.Column="1" FontSize="{Binding MainWindowFontSize}"
-                            MinWidth="220" Margin="0,12,0,0"
-                            SelectedValuePath="Tag"
-                            SelectedValue="{Binding SelectedGlassTransparencyCode, Mode=TwoWay}"
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="180" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding TemplatesFolderLabel}" VerticalAlignment="Center" />
+                        <TextBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
+                                 Text="{Binding TemplatesPath}"
+                                 IsReadOnly="True"
+                                 MinWidth="360"
+                                 Margin="0,0,8,0" />
+                        <ui:Button FontSize="{Binding MainWindowFontSize}" Grid.Column="2"
+                                   Content="{Binding ChooseFolderText}"
+                                   Command="{Binding BrowseTemplatesFolderCommand}" />
+                      </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                      <StackPanel>
+                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding ShortcutText}" FontWeight="SemiBold" Margin="0,0,0,10" />
+                        <WrapPanel>
+                          <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding CtrlText}" IsChecked="{Binding ShortcutControl}" Margin="0,0,12,8" />
+                          <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding ShiftText}" IsChecked="{Binding ShortcutShift}" Margin="0,0,12,8" />
+                          <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding AltText}" IsChecked="{Binding ShortcutAlt}" Margin="0,0,12,8" />
+                          <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding WinText}" IsChecked="{Binding ShortcutWin}" Margin="0,0,12,8" />
+                          <TextBox FontSize="{Binding MainWindowFontSize}" Width="60" Text="{Binding ShortcutKey, UpdateSourceTrigger=PropertyChanged}" />
+                        </WrapPanel>
+                      </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                      <StackPanel>
+                        <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding StartWithWindowsLabel}" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,8" />
+                        <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding MinimizeToTrayLabel}" IsChecked="{Binding MinimizeToTray}" Margin="0,0,0,8" />
+                        <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding CloseToTrayLabel}" IsChecked="{Binding CloseToTray}" />
+                      </StackPanel>
+                    </Border>
+
+                    <!-- Semantic Anchor: MainWindowFontSizeSettingsPreview
+                         SSOT: persisted typography remains MainWindowFontSize; the slider value is a temporary preview during dragging.
+                         Invariants: 10..20 DIP, one-step snapping, sample previews every step, main-window layout updates only after dragging,
+                         the slider occupies exactly one half of the card's available width; popup typography remains independent. -->
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                      <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                          <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding MainWindowFontSizeLabel}" VerticalAlignment="Center" />
+                          <TextBlock FontSize="{Binding MainWindowFontSize}" DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                     Text="{Binding Value, ElementName=MainWindowFontSizeSlider, StringFormat={}{0:0} DIP}" FontWeight="SemiBold" />
+                        </DockPanel>
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                          </Grid.ColumnDefinitions>
+                          <Slider x:Name="MainWindowFontSizeSlider" Grid.Column="0"
+                                  Minimum="10" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
+                                  Value="{Binding MainWindowFontSize, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
+                                  ValueChanged="FontSizeSlider_ValueChanged"
+                                  PreviewMouseLeftButtonUp="FontSizeSlider_PreviewMouseLeftButtonUp" />
+                        </Grid>
+                        <Border Margin="0,10,0,0" Padding="10"
+                                BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                CornerRadius="6" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                          <StackPanel>
+                            <TextBlock Text="{Binding TemplatesText}" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}"
+                                       FontWeight="SemiBold" Margin="0,0,0,5" />
+                            <TextBlock Text="{Binding KeyLabel}" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" FontWeight="SemiBold" />
+                            <TextBlock Text="GPT Quality Gate" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" Margin="0,4,0,6" />
+                            <TextBlock Text="{Binding PreviewLabel}" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" FontWeight="SemiBold" />
+                            <TextBlock Text="Preview text / Vorschautext" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Border>
+                      </StackPanel>
+                    </Border>
+
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+              <TabItem Header="{Binding ShortcutPopupSettingsText}" Style="{StaticResource TemplateCategoryFluentTabStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                  <StackPanel Margin="0,12,8,0">
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="180" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SearchPopupVisibleLinesLabel}"
+                                   VerticalAlignment="Center"
+                                   TextWrapping="Wrap" />
+                        <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
+                                  ItemsSource="{Binding SearchPopupVisibleLineOptions}"
+                                  SelectedItem="{Binding SearchPopupVisibleLines}"
+                                  MinWidth="220" />
+                      </Grid>
+                    </Border>
+
+                    <!-- Semantic Anchor: ShortcutBackdropBlurSettings
+                         SSOT: MainWindowViewModel.SearchPopupBlurRadius is the pending value and
+                         AppSettings.SearchPopupBlurRadius the persisted value. The slider opens
+                         the actual popup (not a mock) and updates the separate GPU composition layer without pixel capture.
+                         Invariant: only shown for a selected Glass theme; the open popup tab controls preview lifecycle. -->
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12"
                             Visibility="{Binding IsGlassThemeSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <ComboBoxItem Tag="Subtle" Content="{Binding GlassTransparencySubtleText}" />
-                    <ComboBoxItem Tag="Standard" Content="{Binding GlassTransparencyStandardText}" />
-                    <ComboBoxItem Tag="Clear" Content="{Binding GlassTransparencyClearText}" />
-                  </ComboBox>
-                </Grid>
-              </Border>
-
-              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding TemplatesFolderLabel}" VerticalAlignment="Center" />
-                  <TextBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
-                           Text="{Binding TemplatesPath}"
-                           IsReadOnly="True"
-                           MinWidth="360"
-                           Margin="0,0,8,0" />
-                  <ui:Button FontSize="{Binding MainWindowFontSize}" Grid.Column="2"
-                             Content="{Binding ChooseFolderText}"
-                             Command="{Binding BrowseTemplatesFolderCommand}" />
-                </Grid>
-              </Border>
-
-              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                <StackPanel>
-                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding ShortcutText}" FontWeight="SemiBold" Margin="0,0,0,10" />
-                  <WrapPanel>
-                    <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding CtrlText}" IsChecked="{Binding ShortcutControl}" Margin="0,0,12,8" />
-                    <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding ShiftText}" IsChecked="{Binding ShortcutShift}" Margin="0,0,12,8" />
-                    <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding AltText}" IsChecked="{Binding ShortcutAlt}" Margin="0,0,12,8" />
-                    <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding WinText}" IsChecked="{Binding ShortcutWin}" Margin="0,0,12,8" />
-                    <TextBox FontSize="{Binding MainWindowFontSize}" Width="60" Text="{Binding ShortcutKey, UpdateSourceTrigger=PropertyChanged}" />
-                  </WrapPanel>
-                </StackPanel>
-              </Border>
-
-              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                <StackPanel>
-                  <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding StartWithWindowsLabel}" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,8" />
-                  <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding MinimizeToTrayLabel}" IsChecked="{Binding MinimizeToTray}" Margin="0,0,0,8" />
-                  <CheckBox FontSize="{Binding MainWindowFontSize}" Content="{Binding CloseToTrayLabel}" IsChecked="{Binding CloseToTray}" />
-                </StackPanel>
-              </Border>
-
-              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180" />
-                    <ColumnDefinition Width="*" />
-                  </Grid.ColumnDefinitions>
-                  <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SearchPopupVisibleLinesLabel}"
-                             VerticalAlignment="Center"
-                             TextWrapping="Wrap" />
-                  <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
-                            ItemsSource="{Binding SearchPopupVisibleLineOptions}"
-                            SelectedItem="{Binding SearchPopupVisibleLines}"
-                            MinWidth="220" />
-                </Grid>
-              </Border>
-
-              <!-- Semantic Anchor: MainWindowFontSizeSettingsPreview
-                   SSOT: persisted typography remains MainWindowFontSize; the slider value is a temporary preview during dragging.
-                   Invariants: 10..20 DIP, one-step snapping, sample previews every step, main-window layout updates only after dragging,
-                   the slider occupies exactly one half of the card's available width; popup typography remains independent. -->
-              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                <StackPanel>
-                  <DockPanel Margin="0,0,0,8">
-                    <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding MainWindowFontSizeLabel}" VerticalAlignment="Center" />
-                    <TextBlock FontSize="{Binding MainWindowFontSize}" DockPanel.Dock="Right" HorizontalAlignment="Right"
-                               Text="{Binding Value, ElementName=MainWindowFontSizeSlider, StringFormat={}{0:0} DIP}" FontWeight="SemiBold" />
-                  </DockPanel>
-                  <Grid>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Slider x:Name="MainWindowFontSizeSlider" Grid.Column="0"
-                            Minimum="10" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
-                            Value="{Binding MainWindowFontSize, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
-                            ValueChanged="FontSizeSlider_ValueChanged"
-                            PreviewMouseLeftButtonUp="FontSizeSlider_PreviewMouseLeftButtonUp" />
-                  </Grid>
-                  <Border Margin="0,10,0,0" Padding="10"
-                          BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                          CornerRadius="6" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-                    <StackPanel>
-                      <TextBlock Text="{Binding TemplatesText}" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}"
-                                 FontWeight="SemiBold" Margin="0,0,0,5" />
-                      <TextBlock Text="{Binding KeyLabel}" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" FontWeight="SemiBold" />
-                      <TextBlock Text="GPT Quality Gate" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" Margin="0,4,0,6" />
-                      <TextBlock Text="{Binding PreviewLabel}" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" FontWeight="SemiBold" />
-                      <TextBlock Text="Preview text / Vorschautext" FontSize="{Binding Value, ElementName=MainWindowFontSizeSlider}" TextWrapping="Wrap" />
-                    </StackPanel>
-                  </Border>
-                </StackPanel>
-              </Border>
-
-              <!-- Semantic Anchor: PopupFontSizeSettingsPreview
-                   SSOT: SearchPopupFontSize remains the persisted popup typography setting; temporary slider values drive the sample during dragging.
-                   Invariants: preview text and labels update immediately, commits occur on drag completion,
-                   and the slider occupies exactly one half of the available card width. -->
-              <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                <StackPanel>
-                  <DockPanel Margin="0,0,0,8">
-                    <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SearchPopupFontSizeLabel}" VerticalAlignment="Center" />
-                    <TextBlock FontSize="{Binding MainWindowFontSize}" DockPanel.Dock="Right" HorizontalAlignment="Right"
-                               Text="{Binding Value, ElementName=SearchPopupFontSizeSlider, StringFormat={}{0:0} DIP}" FontWeight="SemiBold" />
-                  </DockPanel>
-                  <Grid>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Slider x:Name="SearchPopupFontSizeSlider" Grid.Column="0"
-                            Minimum="10" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
-                            Value="{Binding SearchPopupFontSize, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
-                            ValueChanged="FontSizeSlider_ValueChanged"
-                            PreviewMouseLeftButtonUp="FontSizeSlider_PreviewMouseLeftButtonUp" />
-                  </Grid>
-                  <Border Margin="0,10,0,0" Padding="10"
-                          BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                          CornerRadius="6" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="*" />
-                      </Grid.ColumnDefinitions>
-                      <StackPanel Grid.Column="0">
-                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding KeyLabel}" FontWeight="SemiBold" Margin="0,0,0,5" />
-                        <TextBlock Text="GPT Quality Gate" FontSize="{Binding Value, ElementName=SearchPopupFontSizeSlider}" />
-                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding CategoryLabel}" FontWeight="SemiBold" Margin="0,8,0,4" />
-                        <TextBlock Text="GPT" FontSize="{Binding Value, ElementName=SearchPopupFontSizeSlider}" />
+                      <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                          <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SearchPopupBlurLabel}" VerticalAlignment="Center" />
+                          <TextBlock FontSize="{Binding MainWindowFontSize}" DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                     Text="{Binding Value, ElementName=SearchPopupBlurSlider, StringFormat={}{0:0}}" FontWeight="SemiBold" />
+                        </DockPanel>
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                          </Grid.ColumnDefinitions>
+                          <Slider x:Name="SearchPopupBlurSlider" Grid.Column="0"
+                                  Minimum="0" Maximum="32" TickFrequency="1" IsSnapToTickEnabled="True"
+                                  Value="{Binding SearchPopupBlurRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  />
+                        </Grid>
+                        <TextBlock Text="{Binding SearchPopupBlurPreviewText}" FontSize="{Binding MainWindowFontSize}"
+                                   Opacity="0.72" TextWrapping="Wrap" Margin="0,8,0,0" />
                       </StackPanel>
-                      <StackPanel Grid.Column="2">
-                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding PreviewLabel}" FontWeight="SemiBold" Margin="0,0,0,5" />
-                        <TextBlock Text="Preview text / Vorschautext" FontSize="{Binding Value, ElementName=SearchPopupFontSizeSlider}" TextWrapping="Wrap" />
-                      </StackPanel>
-                    </Grid>
-                  </Border>
-                </StackPanel>
-              </Border>
+                    </Border>
 
-              <ui:Button FontSize="{Binding MainWindowFontSize}" Content="{Binding SaveText}"
-                      Command="{Binding SaveSettingsCommand}"
-                      Appearance="Primary"
-                      HorizontalAlignment="Left" />
-            </StackPanel>
-          </ScrollViewer>
+                    <!-- Semantic Anchor: SearchPopupPreviewPositionSettings
+                         SSOT: MainWindowViewModel.SearchPopupPreviewPosition holds the pending
+                         AppSettings code; width and height ratios are saved by the real popup splitter.
+                         Invariants: Right is the legacy default; the active settings preview updates
+                         immediately, and no preview position is persisted before Save. -->
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="180" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SearchPopupPreviewPositionLabel}"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <ComboBox FontSize="{Binding MainWindowFontSize}" Grid.Column="1"
+                                  MinWidth="220" SelectedValuePath="Tag"
+                                  SelectedValue="{Binding SearchPopupPreviewPosition, Mode=TwoWay}">
+                          <ComboBoxItem Tag="Right" Content="{Binding SearchPopupPreviewRightText}" />
+                          <ComboBoxItem Tag="Below" Content="{Binding SearchPopupPreviewBelowText}" />
+                        </ComboBox>
+                      </Grid>
+                    </Border>
+
+                    <!-- Semantic Anchor: PopupFontSizeSettingsPreview
+                         SSOT: SearchPopupFontSize remains the persisted popup typography setting; temporary slider values drive the sample during dragging.
+                         Invariants: the real shortcut preview and sample update on every slider change;
+                         Save alone persists the value, and the slider occupies half the card width. -->
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                      <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                          <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding SearchPopupFontSizeLabel}" VerticalAlignment="Center" />
+                          <TextBlock FontSize="{Binding MainWindowFontSize}" DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                     Text="{Binding Value, ElementName=SearchPopupFontSizeSlider, StringFormat={}{0:0} DIP}" FontWeight="SemiBold" />
+                        </DockPanel>
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                          </Grid.ColumnDefinitions>
+                          <Slider x:Name="SearchPopupFontSizeSlider" Grid.Column="0"
+                                  Minimum="10" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
+                                  Value="{Binding SearchPopupFontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  ValueChanged="FontSizeSlider_ValueChanged"
+                                  PreviewMouseLeftButtonUp="FontSizeSlider_PreviewMouseLeftButtonUp" />
+                        </Grid>
+                        <Border Margin="0,10,0,0" Padding="10"
+                                BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                CornerRadius="6" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                          <Grid>
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="*" />
+                              <ColumnDefinition Width="12" />
+                              <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                              <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding KeyLabel}" FontWeight="SemiBold" Margin="0,0,0,5" />
+                              <TextBlock Text="GPT Quality Gate" FontSize="{Binding Value, ElementName=SearchPopupFontSizeSlider}" />
+                              <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding CategoryLabel}" FontWeight="SemiBold" Margin="0,8,0,4" />
+                              <TextBlock Text="GPT" FontSize="{Binding Value, ElementName=SearchPopupFontSizeSlider}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                              <TextBlock FontSize="{Binding MainWindowFontSize}" Text="{Binding PreviewLabel}" FontWeight="SemiBold" Margin="0,0,0,5" />
+                              <TextBlock Text="Preview text / Vorschautext" FontSize="{Binding Value, ElementName=SearchPopupFontSizeSlider}" TextWrapping="Wrap" />
+                            </StackPanel>
+                          </Grid>
+                        </Border>
+                      </StackPanel>
+                    </Border>
+
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+            </TabControl>
+          </Grid>
         </TabItem>
 
         <TabItem>

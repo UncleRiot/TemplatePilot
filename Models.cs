@@ -27,6 +27,17 @@ public sealed class AppSettings
     // Semantic Anchor: PopupTypographySettings | SSOT: One persisted size controls both popup list and preview.
     // Invariants: legacy settings default to 13 DIP; supported range 10..20; no independent duplicate font settings.
     public int SearchPopupFontSize { get; set; } = 13;
+    // Semantic Anchor: ShortcutBackdropBlurPreference
+    // SSOT: a single persisted radius drives both the hotkey popup and the settings live preview.
+    // Invariants: 0 disables blur; 0..32 is validated on load/save; non-Glass themes remain unaffected.
+    public int SearchPopupBlurRadius { get; set; } = 18;
+    // Semantic Anchor: SearchPopupPreviewLayoutSettings
+    // SSOT: one persisted position code and one split ratio per orientation.
+    // Invariants: legacy settings open with the preview on the right; split ratios
+    // are relative to available space and survive resizing without fixed pixel widths.
+    public string SearchPopupPreviewPosition { get; set; } = "Right";
+    public double SearchPopupPreviewRightRatio { get; set; } = 0.34;
+    public double SearchPopupPreviewBottomRatio { get; set; } = 0.40;
     // Semantic Anchor: MainWindowTypographySettings | SSOT: one persisted font size for the main window; popup typography remains independent.
     // Invariants: absent settings default to 13 DIP; saved user preferences remain unchanged; valid range is 10..20 DIP.
     public int MainWindowFontSize { get; set; } = 13;
@@ -59,6 +70,10 @@ public sealed class AppSettings
             SelectedNavigationIndex = SelectedNavigationIndex,
             ActiveTabIndex = ActiveTabIndex,
             SearchPopupFontSize = SearchPopupFontSize,
+            SearchPopupBlurRadius = SearchPopupBlurRadius,
+            SearchPopupPreviewPosition = SearchPopupPreviewPosition,
+            SearchPopupPreviewRightRatio = SearchPopupPreviewRightRatio,
+            SearchPopupPreviewBottomRatio = SearchPopupPreviewBottomRatio,
             MainWindowFontSize = MainWindowFontSize,
             SearchPopupVisibleLines = SearchPopupVisibleLines,
             ClipboardTimeoutMs = ClipboardTimeoutMs,

@@ -50,6 +50,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _closeToTray;
     private int _searchPopupVisibleLines;
     private int _searchPopupFontSize;
+    private int _searchPopupBlurRadius;
+    private string _searchPopupPreviewPosition;
     private int _mainWindowFontSize;
     private string _templatesPath;
     private TemplateEditorViewModel? _activeEditor;
@@ -107,6 +109,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         _closeToTray = _settings.Current.CloseToTray;
         _searchPopupVisibleLines = Math.Clamp(_settings.Current.SearchPopupVisibleLines, 1, 10);
         _searchPopupFontSize = Math.Clamp(_settings.Current.SearchPopupFontSize, 10, 20);
+        _searchPopupBlurRadius = Math.Clamp(_settings.Current.SearchPopupBlurRadius, 0, 32);
+        _searchPopupPreviewPosition = _settings.Current.SearchPopupPreviewPosition;
         _mainWindowFontSize = Math.Clamp(_settings.Current.MainWindowFontSize, 10, 20);
         _templatesPath = _paths.TemplatesPath;
         // Semantic Anchor: MainWindowStartupView
@@ -215,6 +219,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string VersionText => _localization["Version"];
     public string AppearanceText => _localization["Appearance"];
     public string GeneralText => _localization["General"];
+    public string ShortcutPopupSettingsText => _localization["ShortcutPopupSettings"];
     public string CtrlText => _localization["Ctrl"];
     public string ShiftText => _localization["Shift"];
     public string AltText => _localization["Alt"];
@@ -257,6 +262,11 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string CloseToTrayLabel => _localization["CloseToTray"];
     public string SearchPopupVisibleLinesLabel => _localization["SearchPopupVisibleLines"];
     public string SearchPopupFontSizeLabel => _localization["SearchPopupFontSize"];
+    public string SearchPopupBlurLabel => _localization["SearchPopupBlur"];
+    public string SearchPopupBlurPreviewText => _localization["SearchPopupBlurPreview"];
+    public string SearchPopupPreviewPositionLabel => _localization["SearchPopupPreviewPosition"];
+    public string SearchPopupPreviewRightText => _localization["SearchPopupPreviewRight"];
+    public string SearchPopupPreviewBelowText => _localization["SearchPopupPreviewBelow"];
     public string MainWindowFontSizeLabel => _localization["MainWindowFontSize"];
     public IReadOnlyList<int> SearchPopupVisibleLineOptions { get; } = Enumerable.Range(1, 10).ToList();
     public string TemplatesFolderLabel => _localization["TemplatesFolder"];
@@ -439,6 +449,24 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     {
         get => _searchPopupVisibleLines;
         set => SetProperty(ref _searchPopupVisibleLines, Math.Clamp(value, 1, 10));
+    }
+
+    // Semantic Anchor: ShortcutBackdropBlurLiveValue
+    // Invariant: slider changes preview immediately but persist only via SaveSettingsAsync.
+    public int SearchPopupBlurRadius
+    {
+        get => _searchPopupBlurRadius;
+        set => SetProperty(ref _searchPopupBlurRadius, Math.Clamp(value, 0, 32));
+    }
+
+    // Semantic Anchor: SearchPopupPreviewPositionSelection
+    // SSOT: the settings ComboBox selects a stable persisted position code.
+    // Invariants: the choice is saved with other preferences; changing position
+    // does not reset the independently persisted pane ratios.
+    public string SearchPopupPreviewPosition
+    {
+        get => _searchPopupPreviewPosition;
+        set => SetProperty(ref _searchPopupPreviewPosition, value);
     }
 
     // Semantic Anchor: LivePopupTypographyPreview | SSOT: the settings slider and its sample preview use this one property.
@@ -1030,6 +1058,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         next.CloseToTray = CloseToTray;
         next.SearchPopupVisibleLines = Math.Clamp(SearchPopupVisibleLines, 1, 10);
         next.SearchPopupFontSize = SearchPopupFontSize;
+        next.SearchPopupBlurRadius = SearchPopupBlurRadius;
+        next.SearchPopupPreviewPosition = SearchPopupPreviewPosition;
         next.MainWindowFontSize = MainWindowFontSize;
         next.TemplatesPath = Path.GetFullPath(TemplatesPath.Trim());
 
@@ -1079,6 +1109,11 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
             _messages.Error(_localization["HotkeyConflict"]);
         }
     }
+
+    // Semantic Anchor: SettingsPendingThemePreview
+    // Invariant: applying a selected theme in memory never persists settings; Save
+    // remains the only writer for theme and transparency preferences.
+    public string GetPendingThemeCode() => ToThemeCode(SelectedTheme);
 
     // Semantic Anchor: ThemeIdentityMapping
     // SSOT: stable theme codes map to localized names here; old codes and Glass variants remain round-trippable.

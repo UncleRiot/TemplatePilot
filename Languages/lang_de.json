@@ -81,6 +81,7 @@
   "Navigation": "Navigation",
   "Appearance": "Darstellung",
   "General": "Allgemein",
+  "ShortcutPopupSettings": "Shortcut-Popup",
   "RestoreRecovery": "Nicht gespeicherte Editor-Wiederherstellung laden?",
   "OpenTemplateFilter": "Vorlagenpakete (*.tplpack;*.zip)|*.tplpack;*.zip|Alle Dateien (*.*)|*.*",
   "ExportZipFilter": "ZIP-Export (*.zip)|*.zip",
@@ -99,6 +100,11 @@
   "OpenRelease": "Release öffnen",
   "OK": "OK",
   "SearchPopupFontSize": "Schriftgröße im Such-Popup",
+  "SearchPopupBlur": "Glass-Unschärfestärke des Shortcut-Fensters",
+  "SearchPopupBlurPreview": "Regler bewegen, um das echte Shortcut-Fenster als Live-Vorschau anzuzeigen.",
+  "SearchPopupPreviewPosition": "Position der Schnelltext-Vorschau",
+  "SearchPopupPreviewRight": "Rechts",
+  "SearchPopupPreviewBelow": "Unterhalb",
   "MainWindowFontSize": "Schriftgröße im Hauptfenster",
   "SearchPopupVisibleLines": "Sichtbare Textzeilen pro Suchergebnis"
 }

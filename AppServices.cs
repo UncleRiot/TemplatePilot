@@ -25,6 +25,11 @@ public sealed class AppThemeService
     private bool _glassBackdropEnabled;
     private readonly HashSet<Wpf.Ui.Controls.FluentWindow> _secondaryWindows = new();
 
+    // Semantic Anchor: SearchPopupGlassModeSSOT
+    // Invariant: the popup chooses its native or layered HWND rendering mode once, before Show().
+    // The window's focus state must never change that choice.
+    public bool IsLayeredPopupGlassActive => _glassBackdropEnabled;
+
     public AppThemeService(LoggingService logging)
     {
         _logging = logging;
@@ -53,7 +58,18 @@ public sealed class AppThemeService
             return;
         }
 
-        window.SetResourceReference(Control.BackgroundProperty, "TemplatePilotWindowSurfaceBrush");
+        // Semantic Anchor: SecondaryWindowBackgroundOwnership
+        // Invariant: layered WPF windows require a truly transparent HWND root; their
+        // visible material is drawn by the popup Border, not by the FluentWindow template.
+        if (window.AllowsTransparency)
+        {
+            window.Background = System.Windows.Media.Brushes.Transparent;
+        }
+        else
+        {
+            window.SetResourceReference(Control.BackgroundProperty, "TemplatePilotWindowSurfaceBrush");
+        }
+
         window.Loaded += SecondaryWindow_Loaded;
         window.Closed += SecondaryWindow_Closed;
         ApplySecondaryWindowBackdrop(window);
@@ -78,21 +94,52 @@ public sealed class AppThemeService
     }
 
     // Semantic Anchor: SecondaryWindowBackdropComposition
-    // SSOT: All secondary FluentWindows use this single WPF-UI backdrop lifecycle.
-    // Invariants: preserve the existing WindowStyle, ExtendsContentIntoTitleBar,
-    // sizing and input behavior. A Glass theme extends the native glass frame into
-    // the client area; normal themes restore the original minimal frame thickness.
+    // SSOT: AppThemeService selects native composition for ordinary FluentWindows;
+    // the layered search popup remains on a separate WPF transparency path.
+    // Invariants: existing dialogs retain their native WindowChrome handling;
+    // all windows preserve sizing, input, theme brushes and High Contrast restrictions.
     // A successful native API call alone does not guarantee visible blur (OS-controlled).
     private void ApplySecondaryWindowBackdrop(Wpf.Ui.Controls.FluentWindow window)
     {
+        // Semantic Anchor: SearchPopupLayeredGlassBackdropExclusion
+        // Invariant: WPF per-pixel transparency and native DWM Acrylic are mutually
+        // exclusive HWND strategies. Never reset the transparent composition target
+        // via WindowBackdrop.RemoveBackdrop on an already layered popup.
+        if (window.AllowsTransparency)
+        {
+            window.Background = System.Windows.Media.Brushes.Transparent;
+            return;
+        }
+
         if (!window.IsLoaded)
         {
             return;
         }
 
-        // WPF-UI normally configures this in FluentWindow.OnBackdropTypeChanged.
-        // Secondary windows do not use WindowBackdropType because their existing
-        // ExtendsContentIntoTitleBar=False layout would reject that property.
+        // Semantic Anchor: SecondaryFluentNativeBackdropLifecycle
+        // WPF-UI applies Acrylic to non-layered windows with extended title bar content.
+        // Non-Glass and unsupported environments retain the normal opaque surface.
+        if (window.ExtendsContentIntoTitleBar)
+        {
+            var backdropType = _glassBackdropEnabled
+                ? Wpf.Ui.Controls.WindowBackdropType.Acrylic
+                : Wpf.Ui.Controls.WindowBackdropType.None;
+
+            if (window.WindowBackdropType != backdropType)
+            {
+                window.WindowBackdropType = backdropType;
+            }
+
+            if (!_glassBackdropEnabled)
+            {
+                window.SetResourceReference(Control.BackgroundProperty, "TemplatePilotWindowSurfaceBrush");
+            }
+
+            return;
+        }
+
+        // Secondary windows that keep ExtendsContentIntoTitleBar=False use their
+        // existing manual WindowChrome path to preserve their current behavior.
         var chrome = System.Windows.Shell.WindowChrome.GetWindowChrome(window);
         if (chrome is null)
         {
@@ -129,7 +176,7 @@ public sealed class AppThemeService
     }
 
     // Semantic Anchor: GlassThemeIdentity
-    // SSOT: All supported Glass theme identities live here and use the same Windows Acrylic material.
+    // SSOT: Glass theme identities are shared by native Acrylic and layered-popup materials.
     // Invariant: each code is stable across language changes and is recognized by settings validation.
     public static bool IsGlassTheme(string? themeMode)
     {
@@ -141,11 +188,11 @@ public sealed class AppThemeService
     }
 
     // Semantic Anchor: AppThemeMaterialSSOT
-    // SSOT: The selected theme and one transparency preference define all window/card Glass surface brushes.
-    // Invariants: existing System/Light/Dark themes keep their appearance; native Desktop Acrylic remains
-    // OS-managed and deactivates its blur when Windows makes the window inactive; the tinted material
-    // surfaces stay unchanged across activation changes. No custom blur or compositor is introduced.
-    // High Contrast and unsupported Windows builds use legible opaque theme surfaces.
+    // SSOT: The selected theme and transparency preference define all Window/Card/Popup material brushes.
+    // Invariants: System/Light/Dark themes retain their appearance; WPF-UI native Acrylic remains
+    // OS-managed for normal HWNDs. The Glass popup uses per-pixel WPF transparency instead,
+    // keeping a legible tinted surface regardless of activation. No custom blur is claimed.
+    // High Contrast and unsupported Windows builds retain opaque theme surfaces.
     public void ApplyTheme(string themeMode, string transparencyMode = "Standard")
     {
         if (_isWatchingSystemTheme && _watchedWindow is not null)
@@ -190,8 +237,8 @@ public sealed class AppThemeService
         {
             // Semantic Anchor: GlassMaterialPalette
             // SSOT: Shared levels control Alpha; stable theme codes select RGB tint only.
-            // Invariant: a lighter Clear surface reveals more native Acrylic than Standard or Subtle;
-            // no palette modification must alter the chosen Windows backdrop or other non-Glass themes.
+            // Invariant: Clear has less tint than Standard or Subtle;
+            // palette changes must not modify the native backdrop or non-Glass themes.
             int cardAlpha = transparencyMode switch
             {
                 "Subtle" => 172,
@@ -218,6 +265,24 @@ public sealed class AppThemeService
                 System.Windows.Media.Color.FromArgb(windowAlpha, color.R, color.G, color.B));
             resources["TemplatePilotCardSurfaceBrush"] = new System.Windows.Media.SolidColorBrush(
                 System.Windows.Media.Color.FromArgb((byte)cardAlpha, color.R, color.G, color.B));
+            // Semantic Anchor: SearchPopupLayeredGlassPalette
+            // SSOT: reuse the active theme tint; the popup's HWND-transparent surface
+            // needs a higher alpha than native Acrylic to keep text readable over desktop content.
+            // Invariant: Subtle is most opaque, Clear is least opaque; all stay below full opacity.
+            byte popupAlpha = transparencyMode switch
+            {
+                "Subtle" => 226,
+                "Clear" => 152,
+                _ => 192
+            };
+            resources["TemplatePilotPopupSurfaceBrush"] = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(popupAlpha, color.R, color.G, color.B));
+            // Semantic Anchor: FloatingMenuGlassLegibility
+            // SSOT: the selected Glass palette supplies the tint; floating menus use a fixed
+            // near-opaque alpha even when ordinary cards or the popup body are highly translucent.
+            // Invariant: no transparency setting may reduce floating-menu text readability.
+            resources["TemplatePilotFloatingMenuSurfaceBrush"] = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(248, color.R, color.G, color.B));
         }
         else
         {
@@ -225,7 +290,27 @@ public sealed class AppThemeService
                 ?? System.Windows.Media.Brushes.Transparent;
             resources["TemplatePilotCardSurfaceBrush"] = System.Windows.Application.Current.TryFindResource("CardBackgroundFillColorDefaultBrush")
                 ?? System.Windows.Media.Brushes.Transparent;
+            resources["TemplatePilotPopupSurfaceBrush"] = resources["TemplatePilotWindowSurfaceBrush"];
+            resources["TemplatePilotFloatingMenuSurfaceBrush"] = resources["TemplatePilotCardSurfaceBrush"];
         }
+
+        // Semantic Anchor: SearchPopupSelectionContrast
+        // SSOT: the selected popup row uses SystemAccentColorPrimaryBrush; choose its
+        // foreground once per theme using WCAG contrast (black/white) and share it with
+        // the row, cell and generated text. Never infer contrast from the unselected text.
+        var accent = (System.Windows.Application.Current.TryFindResource("SystemAccentColorPrimaryBrush")
+            as System.Windows.Media.SolidColorBrush)?.Color
+            ?? System.Windows.Media.Color.FromRgb(0, 103, 192);
+        static double LinearChannel(byte value)
+        {
+            double srgb = value / 255d;
+            return srgb <= 0.04045 ? srgb / 12.92 : Math.Pow((srgb + 0.055) / 1.055, 2.4);
+        }
+        double accentLuminance = 0.2126 * LinearChannel(accent.R)
+            + 0.7152 * LinearChannel(accent.G) + 0.0722 * LinearChannel(accent.B);
+        resources["TemplatePilotPopupSelectionTextBrush"] = accentLuminance > 0.179
+            ? System.Windows.Media.Brushes.Black
+            : System.Windows.Media.Brushes.White;
 
         // Semantic Anchor: WindowBackdropLifecycle
         // Invariants: FluentWindow.WindowBackdropType is the native DWM source; the window's brush
@@ -259,8 +344,11 @@ public sealed class AppThemeService
         // material decision as newly opened windows, not a separate per-window theme state.
         foreach (var secondaryWindow in _secondaryWindows)
         {
-            secondaryWindow.SetResourceReference(
-                Control.BackgroundProperty, "TemplatePilotWindowSurfaceBrush");
+            if (!secondaryWindow.AllowsTransparency)
+            {
+                secondaryWindow.SetResourceReference(
+                    Control.BackgroundProperty, "TemplatePilotWindowSurfaceBrush");
+            }
             ApplySecondaryWindowBackdrop(secondaryWindow);
         }
 
@@ -961,6 +1049,11 @@ public sealed class LocalizationService
             ["CloseToTray"] = "Close to tray",
             ["SearchPopupVisibleLines"] = "Visible text lines per search result",
             ["SearchPopupFontSize"] = "Search popup font size",
+            ["SearchPopupBlur"] = "Shortcut popup glass blur strength",
+            ["SearchPopupBlurPreview"] = "Move the slider to open the actual shortcut window as a live preview.",
+            ["SearchPopupPreviewPosition"] = "Shortcut preview position",
+            ["SearchPopupPreviewRight"] = "Right",
+            ["SearchPopupPreviewBelow"] = "Below",
             ["MainWindowFontSize"] = "Main window font size",
             ["UserName"] = "Name",
             ["Company"] = "Company",
@@ -1033,6 +1126,7 @@ public sealed class LocalizationService
             ["Navigation"] = "Navigation",
             ["Appearance"] = "Appearance",
             ["General"] = "General",
+            ["ShortcutPopupSettings"] = "Shortcut popup",
             ["RestoreRecovery"] = "Restore unsaved editor recovery?",
             ["OpenTemplateFilter"] = "Template packages (*.tplpack;*.zip)|*.tplpack;*.zip|All files (*.*)|*.*",
             ["ExportZipFilter"] = "ZIP export (*.zip)|*.zip",
@@ -1309,6 +1403,20 @@ public sealed class SearchPopupService
     private readonly SettingsService _settings;
     private readonly CategoryCatalogService _categories;
     private readonly AppThemeService _themeService;
+    private SearchPopupWindow? _settingsPreview;
+    private SearchPopupViewModel? _settingsPreviewViewModel;
+    // Semantic Anchor: PendingShortcutPopupRuntimeSettings
+    // SSOT: one in-memory override for visual popup settings; never writes configuration.
+    // SaveSettingsAsync remains the only writer of these settings to AppSettings.
+    private (int BlurStrength, int FontSize, int VisibleLines, string Position)? _runtimeVisualSettings;
+
+    public void SetPendingPopupVisualSettings(int blurStrength, int fontSize,
+        int visibleLines, string previewPosition)
+    {
+        _runtimeVisualSettings = (Math.Clamp(blurStrength, 0, 32),
+            Math.Clamp(fontSize, 10, 20), Math.Clamp(visibleLines, 1, 10),
+            string.Equals(previewPosition, "Below", StringComparison.OrdinalIgnoreCase) ? "Below" : "Right");
+    }
 
     public SearchPopupService(
         TemplateResolver resolver,
@@ -1332,11 +1440,21 @@ public sealed class SearchPopupService
 
     public async Task<TemplatePackage?> ShowAsync(WindowTargetContext target, string initialQuery, CancellationToken cancellationToken)
     {
+        CloseSettingsBlurPreview();
         var viewModel = new SearchPopupViewModel(_localization, _settings, initialQuery);
+        if (_runtimeVisualSettings is { } runtime)
+        {
+            viewModel.ApplySettingsPreview(runtime.VisibleLines, runtime.FontSize, runtime.Position);
+        }
         var window = new SearchPopupWindow(viewModel)
         {
-            WindowStartupLocation = WindowStartupLocation.CenterScreen
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            // Semantic Anchor: SearchPopupLayeredWindowCreation
+            // Invariant: set per-pixel transparency before the first HWND is created;
+            // the decision follows AppThemeService and does not depend on focus.
+            AllowsTransparency = _themeService.IsLayeredPopupGlassActive
         };
+        window.SetBackdropBlur(_runtimeVisualSettings?.BlurStrength ?? _settings.Current.SearchPopupBlurRadius);
         // Semantic Anchor: SearchPopupThemeRegistration
         // Invariant: the popup uses the current shared app theme before its first Show.
         _themeService.RegisterSecondaryWindow(window);
@@ -1378,6 +1496,75 @@ public sealed class SearchPopupService
         finally
         {
             _foreground.TryRestore(target);
+        }
+    }
+
+    // Semantic Anchor: LiveShortcutPopupSettingsPreview
+    // SSOT: the same SearchPopupWindow is used for hotkey invocation and for settings.
+    // Invariants: exactly one modeless non-activating preview while the popup-settings
+    // tab is visible; unsaved visual values never mutate AppSettings, and never insert.
+    public void ShowSettingsPopupPreview(Window owner, int blurStrength, int fontSize,
+        int visibleLines, string previewPosition)
+    {
+        if (_settingsPreview is { IsVisible: true })
+        {
+            _settingsPreview.ApplySettingsPreview(visibleLines, fontSize, previewPosition, blurStrength);
+            return;
+        }
+
+        // Reuse the preview ViewModel for this service lifetime; its localization event
+        // subscription must not grow with every slider-preview opening.
+        var viewModel = _settingsPreviewViewModel ??= new SearchPopupViewModel(_localization, _settings, string.Empty);
+        var window = new SearchPopupWindow(viewModel)
+        {
+            IsSettingsPreview = true,
+            AllowsTransparency = _themeService.IsLayeredPopupGlassActive,
+            Owner = owner,
+            ShowActivated = false,
+            Topmost = false,
+            WindowStartupLocation = WindowStartupLocation.Manual
+        };
+
+        // Position beside the settings window whenever possible, so the slider stays usable.
+        // User placement of the real hotkey window is never read or overwritten here.
+        var screen = Forms.Screen.FromHandle(new System.Windows.Interop.WindowInteropHelper(owner).Handle).WorkingArea;
+        var source = PresentationSource.FromVisual(owner);
+        var pixelsToDip = source?.CompositionTarget?.TransformFromDevice ?? System.Windows.Media.Matrix.Identity;
+        var topLeft = pixelsToDip.Transform(new Point(screen.Left, screen.Top));
+        var bottomRight = pixelsToDip.Transform(new Point(screen.Right, screen.Bottom));
+        double right = owner.Left + owner.ActualWidth + 12;
+        double left = owner.Left - window.Width - 12;
+        window.Left = right + window.Width <= bottomRight.X ? right
+            : left >= topLeft.X ? left
+            : Math.Max(topLeft.X, bottomRight.X - window.Width - 12);
+        window.Top = Math.Clamp(owner.Top + 16, topLeft.Y, Math.Max(topLeft.Y, bottomRight.Y - window.Height));
+
+        window.ApplySettingsPreview(visibleLines, fontSize, previewPosition, blurStrength);
+        // The preview's visual tree is noninteractive; unlike the real popup it
+        // has no RequestClose handler and cannot trigger template insertion.
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_settingsPreview, window))
+            {
+                _settingsPreview = null;
+            }
+        };
+
+        _settingsPreview = window;
+        _themeService.RegisterSecondaryWindow(window);
+        window.Show();
+        _ = window.Dispatcher.InvokeAsync(
+            new Action(() => _ = LoadTemplatesIntoPopupAsync(viewModel, window, CancellationToken.None)),
+            DispatcherPriority.ContextIdle);
+    }
+
+    public void CloseSettingsBlurPreview()
+    {
+        var window = _settingsPreview;
+        _settingsPreview = null;
+        if (window is { IsVisible: true })
+        {
+            window.Close();
         }
     }
 
@@ -1518,6 +1705,19 @@ public sealed class SettingsService
         settings.SearchPopupColumns ??= new List<SearchPopupColumnSettings>();
         settings.SearchPopupVisibleLines = Math.Clamp(settings.SearchPopupVisibleLines, 1, 10);
         settings.SearchPopupFontSize = Math.Clamp(settings.SearchPopupFontSize, 10, 20);
+        // Semantic Anchor: ShortcutBackdropBlurValidation
+        // An additive JSON setting is backward compatible: missing values retain the model default.
+        settings.SearchPopupBlurRadius = Math.Clamp(settings.SearchPopupBlurRadius, 0, 32);
+        // Semantic Anchor: SearchPopupPreviewLayoutValidation
+        // SSOT: AppSettings supplies the same layout to hotkey windows and settings previews.
+        // Invariants: old JSON defaults to Right; malformed sizes/positions cannot
+        // produce invalid GridLength values or inaccessible preview panes.
+        settings.SearchPopupPreviewPosition = string.Equals(settings.SearchPopupPreviewPosition, "Below", StringComparison.OrdinalIgnoreCase)
+            ? "Below" : "Right";
+        settings.SearchPopupPreviewRightRatio = double.IsFinite(settings.SearchPopupPreviewRightRatio)
+            ? Math.Clamp(settings.SearchPopupPreviewRightRatio, 0.20, 0.75) : 0.34;
+        settings.SearchPopupPreviewBottomRatio = double.IsFinite(settings.SearchPopupPreviewBottomRatio)
+            ? Math.Clamp(settings.SearchPopupPreviewBottomRatio, 0.20, 0.75) : 0.40;
         // Semantic Anchor: MainWindowTypographyValidation | Invariant: both persisted and newly saved sizes stay within the supported range.
         settings.MainWindowFontSize = Math.Clamp(settings.MainWindowFontSize, 10, 20);
         settings.PopupCategoryFilter = settings.PopupCategoryFilter

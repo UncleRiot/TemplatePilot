@@ -16,19 +16,39 @@
         FontSize="12"
         Loaded="Window_Loaded"
         PreviewKeyDown="Window_PreviewKeyDown">
-  <Border Background="{DynamicResource TemplatePilotWindowSurfaceBrush}"
+  <!-- Semantic Anchor: SearchPopupThemeMaterialContract
+       SSOT: AppThemeService owns popup Glass selection and TemplatePilotPopupSurfaceBrush.
+       Invariants: the popup uses a layered WPF HWND only for eligible Glass themes;
+       the Border tint remains translucent both active and inactive. For other themes
+       the existing window background stays opaque. WPF layered transparency does not blur. -->
+  <Border x:Name="PopupSurface" Background="{DynamicResource TemplatePilotPopupSurfaceBrush}"
           BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
           BorderThickness="1"
           CornerRadius="{StaticResource CornerNormal}"
           Padding="8"
           MouseLeftButtonDown="Window_MouseLeftButtonDown">
-    <!-- Semantic Anchor: SearchPopupSplitLayout | SSOT: the window owns the list/preview panel geometry. Invariants: preview occupies a full-height dedicated right column, never a DataGrid column; hiding it releases its width without changing template selection. -->
-    <Grid>
+    <!-- Semantic Anchor: ShortcutCompositionBackdropLayer
+         SSOT: SearchPopupWindow owns a separate native GPU-composition backdrop behind this
+         layered WPF window; the settings value controls its visible strength. Invariants:
+         no screenshot polling, no blur on WPF controls, and no independent theme palette. -->
+    <!-- Semantic Anchor: SearchPopupSplitLayout
+         SSOT: AppSettings holds the selected position and both split ratios;
+         SearchPopupWindow applies them to this Grid, never to the DataGrid columns.
+         Invariants: the list and selected-template preview retain their bindings,
+         both orientations use a draggable divider, and collapsing the preview
+         releases all of its space without losing the saved ratios. -->
+    <Grid x:Name="PopupLayoutGrid" ClipToBounds="True">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
+        <ColumnDefinition x:Name="SearchResultsColumn" Width="*" MinWidth="180" />
+        <ColumnDefinition x:Name="PreviewSplitterColumn" Width="8" />
         <ColumnDefinition x:Name="PreviewPanelColumn" Width="280" />
       </Grid.ColumnDefinitions>
-      <Grid Grid.Column="0">
+      <Grid.RowDefinitions>
+        <RowDefinition x:Name="SearchResultsRow" Height="*" MinHeight="90" />
+        <RowDefinition x:Name="PreviewSplitterRow" Height="0" />
+        <RowDefinition x:Name="PreviewPanelRow" Height="0" />
+      </Grid.RowDefinitions>
+      <Grid x:Name="SearchResultsPanel" Grid.Row="0" Grid.Column="0">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
@@ -40,13 +60,17 @@
 
         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="8,0,0,0">
           <Button x:Name="PreviewPanelToggleButton" Content="‹" Width="28" Height="24" Margin="0,0,6,0"
-                  Padding="0" ToolTip="Toggle preview" Click="PreviewPanelToggleButton_Click" />
+                  Padding="0" Background="{DynamicResource TemplatePilotCardSurfaceBrush}"
+                  Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                  ToolTip="Toggle preview" Click="PreviewPanelToggleButton_Click" />
         <Grid Width="32">
           <ToggleButton x:Name="CategoryFilterButton"
                         Width="28"
                         Height="24"
                         MinWidth="28"
                         Padding="0"
+                        Background="{DynamicResource TemplatePilotCardSurfaceBrush}"
+                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                         ToolTip="{Binding CategoryFilterLabel}">
             <Viewbox Width="14" Height="14">
               <Canvas Width="16" Height="16">
@@ -59,8 +83,12 @@
                  PlacementTarget="{Binding ElementName=CategoryFilterButton}"
                  Placement="Bottom"
                  StaysOpen="False"
-                 AllowsTransparency="False">
-            <Border Background="{DynamicResource TemplatePilotCardSurfaceBrush}"
+                 AllowsTransparency="True">
+            <!-- Semantic Anchor: SearchPopupCategoryFilterMenu
+                 SSOT: TemplatePilotFloatingMenuSurfaceBrush is the theme-matched floating-menu material.
+                 Invariant: the dropdown stays readable above translucent Glass content without
+                 changing its layout, selection behavior, or the popup window's transparency. -->
+            <Border Background="{DynamicResource TemplatePilotFloatingMenuSurfaceBrush}"
                     BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                     BorderThickness="2"
                     CornerRadius="8"
@@ -97,6 +125,8 @@
                  MinHeight="22"
                  Padding="6,2"
                  VerticalContentAlignment="Center"
+                 Background="{DynamicResource TemplatePilotCardSurfaceBrush}"
+                 Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                  Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                  ToolTip="{Binding HintText}" />
       </DockPanel>
@@ -104,10 +134,11 @@
       <!-- Semantic Anchor: PopupTypography | SSOT: SearchPopupFontSize drives both text areas; row height is auto-derived from text; popup controls retain their existing typography. -->
       <!-- Semantic Anchor: SinglePopupTemplateSelection | SSOT: SelectedTemplate identifies the one active search result. Invariants: no multi-selection with Shift/Ctrl; preview and insert track the selected row. -->
       <!-- Semantic Anchor: SearchPopupGlassSurface
-           SSOT: AppThemeService supplies window/card material brushes to all popup panels.
-           Invariants: list selection, keyboard actions, typography and popup geometry are unchanged. -->
+           SSOT: AppThemeService supplies window/card material brushes to popup panels and controls.
+           Invariants: list, cells and unselected rows do not cover the window material with an opaque
+           layer; selection, keyboard actions, typography and popup geometry remain unchanged. -->
       <DataGrid x:Name="TemplateList"
-                Background="{DynamicResource TemplatePilotWindowSurfaceBrush}"
+                Background="Transparent"
                 FontSize="{Binding SearchPopupFontSize}"
                  RowHeight="NaN"
                  SelectionMode="Single"
@@ -125,12 +156,22 @@
                 HorizontalScrollBarVisibility="Disabled"
                 ColumnReordered="TemplateList_ColumnReordered"
                 MouseDoubleClick="TemplateList_MouseDoubleClick">
+        <DataGrid.ColumnHeaderStyle>
+          <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+            <Setter Property="Background" Value="{DynamicResource TemplatePilotCardSurfaceBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+          </Style>
+        </DataGrid.ColumnHeaderStyle>
         <DataGrid.Resources>
+          <!-- Semantic Anchor: SearchPopupSelectedTextContrast
+               SSOT: AppThemeService computes TemplatePilotPopupSelectionTextBrush from
+               the same accent as selected rows; row, cell and text share this resource.
+               Invariant: blue selection produces white text regardless of theme text colors. -->
           <Style x:Key="TemplateListTextElementStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Style.Triggers>
               <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=IsSelected}" Value="True">
-                <Setter Property="Foreground" Value="White" />
+                <Setter Property="Foreground" Value="{DynamicResource TemplatePilotPopupSelectionTextBrush}" />
               </DataTrigger>
             </Style.Triggers>
           </Style>
@@ -139,13 +180,14 @@
           <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Top" />
+            <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Style.Triggers>
               <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="Transparent" />
-                <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource TemplatePilotPopupSelectionTextBrush}" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="BorderBrush" Value="Transparent" />
               </Trigger>
@@ -155,10 +197,10 @@
         <DataGrid.RowStyle>
           <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
             <!-- Semantic Anchor: SearchPopupRowGlassMaterial
-                 SSOT: AppThemeService supplies the same WindowSurfaceBrush as the popup itself.
-                 Invariants: unselected rows never create an opaque panel over Acrylic;
-                 alternating and selected row styles retain their existing priorities. -->
-            <Setter Property="Background" Value="{DynamicResource TemplatePilotWindowSurfaceBrush}" />
+                 SSOT: the window supplies the base material, while alternate rows use the shared card brush.
+                 Invariants: unselected rows remain transparent over Acrylic, and selected rows retain
+                 their theme accent in both active and inactive states. -->
+            <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -169,7 +211,7 @@
               </Trigger>
               <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource TemplatePilotPopupSelectionTextBrush}" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="BorderBrush" Value="Transparent" />
               </Trigger>
@@ -221,8 +263,38 @@
                 Appearance="Primary" />
       </DockPanel>
       </Grid>
+      <!-- Semantic Anchor: SearchPopupPreviewSplitters
+           Invariants: the visible 1-DIP rule and transparent 8-DIP hit area use
+           the shared stroke brush; only the active orientation is interactive.
+           A drag commits its ratio when complete, not on each pointer movement. -->
+      <GridSplitter x:Name="PreviewVerticalSplitter" Grid.Row="0" Grid.Column="1"
+                    Width="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                    ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+                    Cursor="SizeWE" DragCompleted="PreviewSplitter_DragCompleted">
+        <GridSplitter.Template>
+          <ControlTemplate TargetType="{x:Type GridSplitter}">
+            <Border Background="Transparent">
+              <Border Width="1" HorizontalAlignment="Center"
+                      Background="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            </Border>
+          </ControlTemplate>
+        </GridSplitter.Template>
+      </GridSplitter>
+      <GridSplitter x:Name="PreviewHorizontalSplitter" Grid.Row="1" Grid.Column="0"
+                    Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                    ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                    Cursor="SizeNS" Visibility="Collapsed" DragCompleted="PreviewSplitter_DragCompleted">
+        <GridSplitter.Template>
+          <ControlTemplate TargetType="{x:Type GridSplitter}">
+            <Border Background="Transparent">
+              <Border Height="1" VerticalAlignment="Center"
+                      Background="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            </Border>
+          </ControlTemplate>
+        </GridSplitter.Template>
+      </GridSplitter>
       <!-- Semantic Anchor: SearchPreviewPanel | Invariant: selection is bound to the same SelectedTemplate as the list; no duplicate selection state. -->
-      <Border x:Name="PreviewPanel" Grid.Column="1" Margin="8,0,0,0" Padding="10"
+      <Border x:Name="PreviewPanel" Grid.Row="0" Grid.Column="2" Padding="10"
               Background="{DynamicResource TemplatePilotCardSurfaceBrush}"
               BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6">
         <DockPanel>

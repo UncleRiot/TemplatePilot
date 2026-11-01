@@ -17,6 +17,7 @@ public partial class MainWindow : FluentWindow
     private readonly ApplicationLifetimeService _lifetime;
     private readonly WindowPlacementService _windowPlacement;
     private readonly AppThemeService _themeService;
+    private readonly SearchPopupService _searchPopupService;
     private bool _htmlInitialized;
     private bool _isNavigationPaneCollapsed;
     private bool _viewStateReady;
@@ -27,10 +28,12 @@ public partial class MainWindow : FluentWindow
         TrayService tray,
         ApplicationLifetimeService lifetime,
         WindowPlacementService windowPlacement,
-        AppThemeService themeService)
+        AppThemeService themeService,
+        SearchPopupService searchPopupService)
     {
         InitializeComponent();
         _themeService = themeService;
+        _searchPopupService = searchPopupService;
         // Semantic Anchor: FontSizeSliderCommitWiring
         // SSOT: the slider's explicit binding commits to the existing ViewModel property only after interaction completes.
         // Invariant: drag gestures update their local live previews without causing parent-window relayout under the pointer.
@@ -92,11 +95,48 @@ public partial class MainWindow : FluentWindow
         }
     }
 
+    // Semantic Anchor: SettingsSectionPreviewLifecycle
+    // Invariant: the real non-interactive popup is visible iff the dedicated settings
+    // tab is selected and the main window can display it. Switching tabs closes it.
+    private void SettingsSectionTabs_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (ReferenceEquals(e.OriginalSource, SettingsSectionTabs))
+        {
+            UpdateSettingsPopupPreview();
+        }
+    }
+
+    private void UpdateSettingsPopupPreview()
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        // Unsaved changes affect both the live settings preview and subsequent hotkey
+        // popups in this process. No settings file is modified before Save.
+        _searchPopupService.SetPendingPopupVisualSettings(ViewModel.SearchPopupBlurRadius,
+            ViewModel.SearchPopupFontSize, ViewModel.SearchPopupVisibleLines,
+            ViewModel.SearchPopupPreviewPosition);
+
+        if (!IsVisible || WindowState == WindowState.Minimized
+            || ViewModel.SelectedNavigationIndex != 1 || SettingsSectionTabs.SelectedIndex != 1)
+        {
+            _searchPopupService.CloseSettingsBlurPreview();
+            return;
+        }
+
+        _searchPopupService.ShowSettingsPopupPreview(this, ViewModel.SearchPopupBlurRadius,
+            ViewModel.SearchPopupFontSize, ViewModel.SearchPopupVisibleLines,
+            ViewModel.SearchPopupPreviewPosition);
+    }
+
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         ApplyCompactTemplatesGridStyles();
         ApplyNavigationPaneState();
         ApplyPreviewTabVisibility();
+        UpdateSettingsPopupPreview();
         // Semantic Anchor: ViewStatePersistenceActivation | Invariant: persist only after restored view state has been applied.
         _viewStateReady = true;
         ViewModel.InitializeCommand.Execute(null);
@@ -273,6 +313,7 @@ public partial class MainWindow : FluentWindow
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
+        _searchPopupService.CloseSettingsBlurPreview();
         if (_lifetime.IsShutdownRequested)
         {
             return;
@@ -285,8 +326,14 @@ public partial class MainWindow : FluentWindow
         }
     }
 
+    private void Window_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        UpdateSettingsPopupPreview();
+    }
+
     private void Window_StateChanged(object? sender, EventArgs e)
     {
+        UpdateSettingsPopupPreview();
         if (WindowState == WindowState.Minimized && _settings.Current.MinimizeToTray)
         {
             _tray.HideMainWindow();
@@ -295,6 +342,7 @@ public partial class MainWindow : FluentWindow
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        _searchPopupService.CloseSettingsBlurPreview();
         if (DataContext is MainWindowViewModel viewModel)
         {
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -540,6 +588,24 @@ public partial class MainWindow : FluentWindow
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // Semantic Anchor: SettingsVisualValuesBeforeSave
+        // SSOT: MainWindowViewModel owns pending settings; the active shortcut preview
+        // consumes them immediately, but only SaveSettingsAsync writes AppSettings.
+        if (e.PropertyName == nameof(MainWindowViewModel.SelectedTheme)
+            || e.PropertyName == nameof(MainWindowViewModel.SelectedGlassTransparencyCode))
+        {
+            _themeService.ApplyTheme(ViewModel.GetPendingThemeCode(), ViewModel.SelectedGlassTransparencyCode);
+        }
+
+        if (string.IsNullOrEmpty(e.PropertyName)
+            || e.PropertyName == nameof(MainWindowViewModel.SelectedNavigationIndex)
+            || e.PropertyName == nameof(MainWindowViewModel.SearchPopupFontSize)
+            || e.PropertyName == nameof(MainWindowViewModel.SearchPopupVisibleLines)
+            || e.PropertyName == nameof(MainWindowViewModel.SearchPopupBlurRadius)
+            || e.PropertyName == nameof(MainWindowViewModel.SearchPopupPreviewPosition))
+        {
+            UpdateSettingsPopupPreview();
+        }
         if (string.IsNullOrEmpty(e.PropertyName) || e.PropertyName == nameof(MainWindowViewModel.ActiveTabIndex))
         {
             ApplyPreviewTabVisibility();
